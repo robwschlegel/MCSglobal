@@ -37,3 +37,8 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Other large files
+metadata/lon_lat_OISST_area.RData
+metadata/map_base.Rdata
+metadata/OISST_ocean_coords.Rdata

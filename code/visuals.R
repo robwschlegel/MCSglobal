@@ -6,12 +6,11 @@
 # Libraries ---------------------------------------------------------------
 
 .libPaths(c("~/R-packages", .libPaths()))
-source("MCS_prep.R")
+source("code/functions.R")
 library(gganimate)
 library(ggpubr)
 library(ggridges)
 library(ggpattern)
-library(glow)
 library(viridisLite)
 library(heatwaveR); packageVersion("heatwaveR")
 library(doParallel); registerDoParallel(cores = 50)

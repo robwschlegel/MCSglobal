@@ -5,7 +5,8 @@
 # Setup -------------------------------------------------------------------
 
 .libPaths(c("~/R-packages", .libPaths()))
-source("MHW_prep.R")
+library(tidyverse)
+library(padr)
 library(XML)
 
 
@@ -30,7 +31,7 @@ BlueSpectrum <- t(data.frame(xmlToList(xmlParse("metadata/BlueSpectrum.xml"))$Co
   select(r, g, b) %>% 
   mutate(r = round(as.numeric(r)*255), g = round(as.numeric(g)*255), b = round(as.numeric(b)*255),
          hex = rgb2hex(r, g, b))
-write_csv(BlueSpectrum, "metadata/BlueSpecturm.csv")
+# write_csv(BlueSpectrum, "metadata/BlueSpecturm.csv")
 
 # BlueWater colour palette from sciviscolor.org/home/environmental-palettes/
 BlueWater <- t(data.frame(xmlToList(xmlParse("metadata/BlueWater.xml"))$ColorMap[1:12], stringsAsFactors = F)) %>% 
@@ -74,9 +75,17 @@ MCS_colours <- c(
   "V Ice" = "thistle1"
 )
 
+# The MHW colour palette
+MHW_colours <- c(
+  "Moderate" = "#ffc866",
+  "Strong" = "#ff6900",
+  "Severe" = "#9e0000",
+  "Extreme" = "#2d0000"
+)
+
 # OISST coords
 # The lon coords for the OISST data
-load("metadata/lon_OISST.RData")
+lon_OISST <- seq(0.125, 359.875, by = 0.25)
 lon_OISST <- ifelse(lon_OISST > 180, lon_OISST-360, lon_OISST)
 lat_OISST <- seq(-89.875, 89.875, by = 0.25)
 lon_lat_OISST <- base::expand.grid(lon_OISST, lat_OISST) %>% 
@@ -99,6 +108,63 @@ load("metadata/map_base.Rdata")
 
 # Disable scientific notation
 options(scipen = 9999)
+
+
+# Prep functions ----------------------------------------------------------
+
+# Tester...
+# load("../data/MCS.calc.0001.RData")
+
+# Pull out climatologies
+MCS_clim <- function(df){
+  clim <- df %>% 
+    unnest(event) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(event)# %>% 
+  # select(-(threshCriterion:event))
+}
+# test <- MCS_clim(MCS_res)
+
+# Pull out events
+MCS_event <- function(df){
+  event <- df %>% 
+    unnest(event) %>% 
+    filter(row_number() %% 2 == 0) %>% 
+    unnest(event)
+}
+# test <- MCS_event(MCS_res)
+
+# Pull out category climatologies
+MCS_cat_clim <- function(df, long = FALSE){
+  cat_clim <- df %>% 
+    unnest(cat) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(cat)
+  if(long){
+    cat_clim_long <- cat_clim %>% 
+      group_by(lon, lat) %>%
+      nest() %>%
+      mutate(long = map(data, pad, interval = "day", 
+                        start_val = as.Date("1982-01-01"))) %>% 
+      dplyr::select(-data) %>%
+      unnest()
+  } else {
+    return(cat_clim)
+  }
+}
+# test <- MCS_cat_clim(MCS_res)
+# test <- MCS_cat_clim(MCS_res, long = T)
+
+# Pull out event category summaries
+MCS_cat_event <- function(df){
+  suppressWarnings(
+    cat_event <- df %>% 
+      unnest(cat) %>% 
+      filter(row_number() %% 2 == 0) %>% 
+      unnest(cat)
+  )
+}
+# test <- MCS_cat_event(MCS_res)
 
 
 # Functions ---------------------------------------------------------------

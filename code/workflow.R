@@ -1,5 +1,7 @@
 # code/workflow.R
-# The purpose of this script is to house the code used for calculating global historic MCSs
+# This script houses the code used for calculating global historic MCSs
+# NB: This script is designed to run on a server that contains OISST data in a "../data/" folder
+# NB: This script is also designed to output the results to that "../data/" folder
 # 1: Setup
 # 2: Full calculations
 # 3: Daily categories
@@ -19,22 +21,19 @@
 
 # Libraries
 .libPaths(c("~/R-packages", .libPaths()))
-source("MCS_prep.R")
+source("code/functions.R")
 library(lubridate)
 library(dtplyr)
 library(tidync)
 library(broom)
 library(e1071)
 library(ggridges)
-# remotes::install_github("robwschlegel/heatwaveR", force = T)
+# remotes::install_github("robwschlegel/heatwaveR", force = T) # Development version
 library(heatwaveR); packageVersion("heatwaveR")
 library(doParallel); registerDoParallel(cores = 50)
 
 # Coordinates with surface area
 load("metadata/lon_lat_OISST_area.RData")
-
-# TO DO
-# Also need to calculate the 1/(days from start to peak) and 1/(days from peak to end) and make maps
 
 # Check on one pixel
 # SST <- tidync(OISST_files[which(lon_OISST == -178.625)]) %>%
@@ -82,7 +81,7 @@ MCS_calc <- function(lon_row){
   # Finish
   saveRDS(MCS_res, paste0("../data/MCS/MCS.calc.", lon_row_pad,".Rds"))
   rm(SST, MCS_res); gc()
-  print(paste("Completed run",lon_row_pad,"at",Sys.time()))
+  print(paste("Completed run ",lon_row_pad," at ",Sys.time()))
 }
 
 # system.time(
@@ -91,7 +90,7 @@ MCS_calc <- function(lon_row){
 
 # Ran on Saturday, October 31st, 2020
 # plyr::l_ply(1:1440, .fun = MCS_calc, .parallel = T)
-# Takes just over two hours
+# Takes just over two hours on 50 cores
 
 
 # 3: Daily categories -----------------------------------------------------
@@ -217,6 +216,7 @@ max_event_date <- function(df){
     ungroup()
 }
 
+# Function to create annual summaries
 # testers...
 # chosen_year <- 1982
 # product <- "OISST"
@@ -246,7 +246,7 @@ MCS_annual_state <- function(chosen_year, product, chosen_clim, force_calc = F){
   ## Load/Process data
   # Categories per pixel
   if(file.exists(paste0("annual_summary_MCS/MCS_cat_pixel_",chosen_year,".Rds")) & !force_calc){
-    MCS_cat_pixel <- readRDS(paste0("annual_summary_MCS/MCS_cat_pixel_",chosen_year,".Rds"))
+    MCS_cat_pixel <- readRDS(paste0("data/MCS_cat_pixel_",chosen_year,".Rds"))
   } else{
     
     # system.time(
@@ -563,9 +563,8 @@ MCS_total_state_fig <- function(df, product, chosen_clim){
   fig_ALL_historic <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_historic,
                                         ncol = 3, align = "hv", labels = c("A)", "B)", "C)"), hjust = -0.1,
                                         font.label = list(size = 14), common.legend = T, legend = "bottom")
-  ggsave(fig_ALL_historic, filename = paste0("graph/summary/",product,"_cat_historic_"
-                                             ,chosen_clim,"_ice.png"), height = 4.25, width = 12)
-  # ggsave(fig_ALL_full, filename = paste0("figures/",product,"_cat_historic_",chosen_clim,".eps"), height = 4.25, width = 12)
+  ggsave(fig_ALL_historic, filename = paste0("output/summary/",product,"_cat_historic_",
+                                             chosen_clim,"_ice.png"), height = 4.25, width = 12)
 }
 
 ## Run it
@@ -779,10 +778,10 @@ var_mean_trend_fig <- function(var_name){
   # trend_map
   
   full_map <- ggpubr::ggarrange(mean_map, trend_map, ncol = 1, nrow = 2, align = "hv")
-  ggsave(paste0("graph/summary/mean_trend_",var_name,".png"), full_map, width = 12, height = 12)
+  ggsave(paste0("output/summary/mean_trend_",var_name,".png"), full_map, width = 12, height = 12)
 }
 
-# Load all picel values/trends into one brick
+# Load all pixel values/trends into one brick
 # MCS_count_trend <- plyr::ldply(MCS_count_trend_files, readRDS, .parallel = T)
 # unique(MCS_count_trend$name)
 
@@ -1078,9 +1077,8 @@ MCS_cat_count_calc <- function(lon_step){
 # 11: Check on MCS hole in Antarctica -------------------------------------
 
 # There is a hole in the MCS results in the Southern Ocean where no MCS are reported
-# After going through the brief analysis below it appears that the issue is that 
-# the 10th percentile is -1.8C because this patch is almost always frozen throughout
-# the entire satellite record
+# The analysis below reveals that the issue is the 10th percentile is -1.8C because 
+# his patch is almost always frozen throughout the entire satellite record
 # On second pass it appears that the detect_event() function is changing the threshold
 # after it was already calculated...
 
@@ -1256,55 +1254,55 @@ ice_thresh_full <- function(ice_thresh_range){
 # ice_thresh_full(c(-1.8, 0))
 
 # Load all results and plot them
-ice_thresh_all <- read_rds("data/MCS_ice_thresh_test.Rds")
+# ice_thresh_all <- read_rds("data/MCS_ice_thresh_test.Rds")
 
 # Overall summary
-ice_thresh_fig_a <- ice_thresh_all %>% 
-  group_by(ice_thresh, category_ice) %>% 
-  summarise(mean_cum_area_prop = mean(cat_area_cum_prop), .groups = "drop") %>% 
-  ggplot(aes(x = ice_thresh, y = mean_cum_area_prop)) +
-  geom_bar(aes(fill = category_ice), stat = "identity", show.legend = T,
-           position = position_stack(reverse = TRUE), width = 0.1) +
-  scale_fill_manual("Category", values = MCS_colours) +
-  scale_y_continuous(breaks = c(4, 8, 12)) +
-  labs(y = "Total average \n global MCS days", x = "Threshold for ice category (°C)") +
-  coord_cartesian(expand = F) +
-  theme_bw() +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 15),
-        axis.text = element_text(size = 13))
-ice_thresh_fig_a
+# ice_thresh_fig_a <- ice_thresh_all %>% 
+#   group_by(ice_thresh, category_ice) %>% 
+#   summarise(mean_cum_area_prop = mean(cat_area_cum_prop), .groups = "drop") %>% 
+#   ggplot(aes(x = ice_thresh, y = mean_cum_area_prop)) +
+#   geom_bar(aes(fill = category_ice), stat = "identity", show.legend = T,
+#            position = position_stack(reverse = TRUE), width = 0.1) +
+#   scale_fill_manual("Category", values = MCS_colours) +
+#   scale_y_continuous(breaks = c(4, 8, 12)) +
+#   labs(y = "Total average \n global MCS days", x = "Threshold for ice category (°C)") +
+#   coord_cartesian(expand = F) +
+#   theme_bw() +
+#   theme(panel.border = element_rect(colour = "black", fill = NA),
+#         axis.title = element_text(size = 15),
+#         axis.text = element_text(size = 13))
+# ice_thresh_fig_a
 
 # Time series figure showing how proportions of MCS days change over years from threshold choice
-ice_thresh_fig_b <- ice_thresh_all %>% 
-  ggplot() +
-  geom_line(aes(x = t, y = cat_area_cum_prop, colour = ice_thresh, group = ice_thresh)) +
-  scale_colour_viridis_c("Ice Threshold", option = "A") +
-  facet_wrap(~category_ice, scales = "free", nrow = 1) +
-  labs(x = NULL, y = "Global MCS days") +
-  theme_bw()
-ice_thresh_fig_b
+# ice_thresh_fig_b <- ice_thresh_all %>% 
+#   ggplot() +
+#   geom_line(aes(x = t, y = cat_area_cum_prop, colour = ice_thresh, group = ice_thresh)) +
+#   scale_colour_viridis_c("Ice Threshold", option = "A") +
+#   facet_wrap(~category_ice, scales = "free", nrow = 1) +
+#   labs(x = NULL, y = "Global MCS days") +
+#   theme_bw()
+# ice_thresh_fig_b
 
 # Create figure with the values per year as slope of linear model of change in category as threshold decreases
-ice_thresh_fig_c <- ice_thresh_all %>% 
-  group_by(t, category_ice) %>%
-  do(fit_cat = tidy(lm(cat_area_cum_prop ~ ice_thresh, data = .))) %>% 
-  unnest(fit_cat) %>% 
-  filter(term == "ice_thresh") %>% 
-  ggplot() +
-  geom_boxplot(aes(x = category_ice, y = estimate, fill = category_ice),
-               outlier.colour = NA, show.legend = F) +
-  geom_jitter(aes(x = category_ice, y = estimate, colour = t), width = 0.1) +
-  scale_fill_manual("Category", values = MCS_colours) +
-  scale_colour_viridis_c("Year") +
-  facet_wrap(~category_ice, scales = "free", nrow = 1) +
-  labs(x = NULL, y = "Change in global ocean\n MCS days due to rising\n ice category threshold") +
-  theme_bw()
-ice_thresh_fig_c
+# ice_thresh_fig_c <- ice_thresh_all %>% 
+#   group_by(t, category_ice) %>%
+#   do(fit_cat = tidy(lm(cat_area_cum_prop ~ ice_thresh, data = .))) %>% 
+#   unnest(fit_cat) %>% 
+#   filter(term == "ice_thresh") %>% 
+#   ggplot() +
+#   geom_boxplot(aes(x = category_ice, y = estimate, fill = category_ice),
+#                outlier.colour = NA, show.legend = F) +
+#   geom_jitter(aes(x = category_ice, y = estimate, colour = t), width = 0.1) +
+#   scale_fill_manual("Category", values = MCS_colours) +
+#   scale_colour_viridis_c("Year") +
+#   facet_wrap(~category_ice, scales = "free", nrow = 1) +
+#   labs(x = NULL, y = "Change in global ocean\n MCS days due to rising\n ice category threshold") +
+#   theme_bw()
+# ice_thresh_fig_c
 
 # Combine and save
-ice_thresh_fig <- ggpubr::ggarrange(ice_thresh_fig_a, ice_thresh_fig_b, ice_thresh_fig_c, 
-                                    ncol = 1, labels = c("A)", "B)", "C)"))
-ice_thresh_fig
-ggsave("graph/MCS_ice_thresh_test.png", ice_thresh_fig, height = 8, width = 12)
+# ice_thresh_fig <- ggpubr::ggarrange(ice_thresh_fig_a, ice_thresh_fig_b, ice_thresh_fig_c, 
+#                                     ncol = 1, labels = c("A)", "B)", "C)"))
+# ice_thresh_fig
+# ggsave("graph/MCS_ice_thresh_test.png", ice_thresh_fig, height = 8, width = 12)
 
