@@ -437,7 +437,7 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
   fig_ALL_cap <- ggpubr::ggarrange(fig_ALL_cap, fig_ALL, heights = c(0.07, 1), nrow = 2)
   
   # print("Saving final figure")
-  ggsave(fig_ALL_cap, height = 12, width = 18, filename = paste0("output/cat_summary_",chosen_year,".png"))
+  ggsave(fig_ALL_cap, height = 12, width = 18, filename = paste0("summary/cat_summary_",chosen_year,".png"))
 }
 
 # Run ALL years
@@ -555,7 +555,7 @@ MCS_total_state_fig <- function(df){
   fig_ALL_cap <- ggpubr::ggarrange(fig_ALL_cap, fig_ALL_total, heights = c(0.07, 1), nrow = 2)
   
   # Save
-  ggsave(fig_ALL_cap, filename = paste0("output/cat_summary_total.png"), height = 4.25, width = 12)
+  ggsave(fig_ALL_cap, filename = paste0("summary/cat_summary_total.png"), height = 4.25, width = 12)
 }
 
 ## Run it
