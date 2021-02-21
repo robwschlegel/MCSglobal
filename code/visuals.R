@@ -14,7 +14,6 @@ library(ggpattern)
 library(viridisLite)
 library(heatwaveR); packageVersion("heatwaveR")
 library(doParallel); registerDoParallel(cores = 50)
-#
 
 
 # Colour palette comparison figure ----------------------------------------

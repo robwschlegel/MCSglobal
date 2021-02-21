@@ -31,10 +31,642 @@ In the following sections we will first look at considerations for how to deal w
 ## Impossible categories
 
 
+
+```{r}
+# Figures showing what the temperature threshold must be per pixel to reach the four categories
+
+# Function for loading and extracting the lowest MCS threshold per pixel
+# lon_step <- 1
+MCS_thresh_func <- function(lon_step){
+  MCS_df <- readRDS(MCS_lon_files[lon_step])
+  MCS_thresh <- MCS_df %>% 
+    dplyr::select(-cat) %>% 
+    unnest(event) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(event) %>% 
+    mutate(diff = thresh - seas,
+           thresh_2x = thresh + diff,
+           thresh_3x = thresh_2x + diff,
+           thresh_4x = thresh_3x + diff) %>% 
+    group_by(lon, lat) %>% 
+    summarise(thresh_4x = min(thresh_4x, na.rm = T), .groups = "drop")
+  rm(MCS_df); gc() 
+  return(MCS_thresh)
+}
+
+# Load all of the max Cat 4 thresholds
+# doParallel::registerDoParallel(cores = 20)
+# MCS_thresh <- plyr::ldply(1:1440, MCS_thresh_func, .parallel = T, .paropts = c(.inorder = FALSE))
+# saveRDS(MCS_thresh, "data/MCS_thresh.Rds")
+MCS_thresh <- readRDS("data/MCS_thresh.Rds")
+
+# Map of the Cat 4 thresholds for the MCSs
+map_MCS_thresh <- MCS_thresh %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = thresh_4x)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+  geom_contour(aes(z = thresh_4x), colour = "black", breaks = c(-1.8, 35)) +
+  scale_fill_gradient2("Cat. IV threshold", low = "blue", high = "red") +
+  coord_quickmap(expand = F, ylim = c(-70, 70)) +
+  theme_void() +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "top")
+
+# Do the same for MHWs
+MHW_thresh_func <- function(lon_step){
+  MHW_thresh <- tidync::tidync(dir("../data/thresh/", full.names = T)[lon_step]) %>%
+    tidync::hyper_tibble() %>%
+    mutate(diff = thresh - seas,
+           thresh_2x = thresh + diff,
+           thresh_3x = thresh_2x + diff,
+           thresh_4x = thresh_3x + diff) %>%
+    group_by(lon, lat) %>%
+    summarise(thresh_4x = max(thresh_4x, na.rm = T), .groups = "drop")
+}
+
+# Load all of the max Cat 4 thresholds
+doParallel::registerDoParallel(cores = 50)
+MHW_thresh <- plyr::ldply(1:1440, MHW_thresh_func, .parallel = T, .paropts = c(.inorder = FALSE))
+
+# Map of the Cat 4 thresholds for the MCSs
+map_MHW_thresh <- MHW_thresh %>%
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = thresh_4x)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+  geom_contour(aes(z = thresh_4x), colour = "black", breaks = c(-1.8, 35)) +
+  scale_fill_gradient2("Cat. IV threshold", low = "blue", high = "red") +
+  coord_quickmap(expand = F, ylim = c(-70, 70)) +
+  theme_void() +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "top")
+
+# Combine maps
+# fig_S1 <- ggpubr::ggarrange(map_MCS_thresh, map_MHW_thresh, ncol = 2, nrow = 1, labels = c("A)", "B)"))
+fig_S1 <- map_MCS_thresh
+ggsave("figure/fig_S1.png", fig_S1, height = 4, width = 8)
+ggsave("figure/fig_S1.pdf", fig_S1, height = 4, width = 8)
+```
+
+```{r}
+# The difference between the standard category definition and one corrected for -1.8C
+
+# Extract the barrier island time series from the Florida data
+BI_coords <- FL_data$clim_data %>% 
+  mutate(anom = temp - seas) %>% 
+  filter(anom == min(anom))
+BI_data <- FL_data$clim_data %>% 
+  filter(lon == BI_coords$lon,
+         lat == BI_coords$lat,
+         t >= BI_coords$t-100,
+         t <= BI_coords$t+100) %>% 
+  mutate(diff = thresh - seas,
+         thresh_2x = thresh + diff,
+         thresh_3x = thresh_2x + diff,
+         thresh_4x = thresh_3x + diff) %>% 
+  mutate(diff_new = case_when(thresh_4x+diff <= -1.8 ~ -(thresh+1.8)/4, TRUE ~ diff),
+         thresh_2x_new = thresh + diff_new,
+         thresh_3x_new = thresh_2x_new + diff_new,
+         thresh_4x_new = thresh_3x_new + diff_new) %>% 
+  mutate(thresh_5x = ifelse(thresh < -1.5, thresh, -1.5))
+  
+
+# Further subset for correct hatching
+BI_data_sub <- BI_data %>% 
+  filter(event_no == 69)
+
+# Extract an ice-edge data point to show the effect of ice category
+ice_SST <- tidync(OISST_files[which(lon_OISST == 147.875)]) %>% 
+  hyper_tibble() %>% 
+  mutate(time = as.Date(time, origin = "1970-01-01")) %>% 
+  dplyr::rename(t = time, temp = sst) %>% 
+  filter(lat == 59.375)
+
+# Calculate clims etc.
+ice_clim <- ts2clm(ice_SST, climatologyPeriod = c("1982-01-01", "2011-12-31"), pctile = 10) %>% 
+  mutate(diff = thresh - seas,
+         thresh_2x = thresh + diff,
+         thresh_3x = thresh_2x + diff,
+         thresh_4x = thresh_3x + diff) %>% 
+  mutate(diff_new = case_when(thresh_4x+diff <= -1.8 ~ -(thresh+1.8)/4, TRUE ~ diff),
+         thresh_2x_new = thresh + diff_new,
+         thresh_3x_new = thresh_2x_new + diff_new,
+         thresh_4x_new = thresh_3x_new + diff_new) %>% 
+  mutate(thresh_5x = ifelse(thresh < -1.5, thresh, -1.5))
+
+# Subset for hatching
+ice_clim_sub <- ice_clim %>% 
+  filter(t >= "2019-12-01", t <= "2020-05-30",
+         temp <= thresh)
+
+# Top left panel: original categories
+fig_S2a <- BI_data  %>% 
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
+  geom_ribbon_pattern(data = BI_data_sub, aes(ymin = seas, ymax = temp), 
+                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
+                                                   size = c(1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "right")
+fig_S2a
+
+# Top middle panel: the categories corrected for -1.8C
+fig_S2b <- BI_data  %>% 
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
+  geom_ribbon_pattern(data = BI_data_sub, aes(ymin = seas, ymax = temp), 
+                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
+                                                   size = c(1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "right")
+fig_S2b
+
+# Top right panel: the ice categories < -1.5C
+fig_S2c <- BI_data  %>% 
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
+  geom_flame(aes(y = thresh_5x, y2 = temp, fill = "Ice")) +
+  geom_ribbon_pattern(data = BI_data_sub, aes(ymin = seas, ymax = temp), 
+                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = thresh_5x, col = "< -1.5C"), size = 0.2, linetype = "solid") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold", "< -1.5C")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme", "Ice")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted", "solid"),
+                                                   size = c(1, 1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "right")
+fig_S2c
+
+# Bottom left panel: original categories
+fig_S2d <- ice_clim  %>% 
+  filter(t >= "2019-12-01", t <= "2020-05-30") %>%
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
+  geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
+                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(breaks = c(0, -2.5, -5)) +
+  coord_cartesian(ylim = c(-7.5, 2.5), expand = F) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
+                                                   size = c(1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "right")
+fig_S2d
+
+# Bottom middle panel: the categories corrected for -1.8C
+fig_S2e <- ice_clim  %>% 
+  filter(t >= "2019-12-01", t <= "2020-05-30") %>%
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
+  geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
+                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(breaks = c(0, -2.5, -5)) +
+  coord_cartesian(ylim = c(-7.5, 2.5), expand = F) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
+                                                   size = c(1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "right")
+fig_S2e
+
+# Bottom right panel: the ice categories < -1.5C
+fig_S2f <- ice_clim  %>% 
+  filter(t >= "2019-12-01", t <= "2020-05-30") %>%
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
+  geom_flame(aes(y = thresh_5x, y2 = temp, fill = "Ice")) +
+  geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
+                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = thresh_5x, col = "< -1.5C"), size = 0.2, linetype = "solid") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold", "< -1.5C")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme", "Ice")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(breaks = c(0, -2.5, -5)) +
+  coord_cartesian(ylim = c(-7.5, 2.5), expand = F) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted", "solid"),
+                                                   size = c(1, 1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "bottom")
+fig_S2f
+
+# Combine and save
+fig_S2 <- ggpubr::ggarrange(fig_S2a, fig_S2b, fig_S2c, fig_S2d, fig_S2e, fig_S2f,
+                            ncol = 3, nrow = 2, labels = c("A)", "B)", "C)", "D)", "E)", "F)"),
+                            legend = "bottom", common.legend = T, legend.grob = get_legend(fig_S2f))
+ggsave("figure/fig_S2.png", fig_S2, height = 8, width = 15)
+ggsave("figure/fig_S2.pdf", fig_S2, height = 8, width = 15)
+```
+
+
+```{r}
+# Function for getting the total count of each category per pixel
+MCS_cat_count_calc <- function(lon_step){
+  
+  # Start
+  lon_step_pad <- str_pad(lon_step, 4, pad = "0")
+  print(paste0("Began run on ",lon_step," at ", Sys.time()))
+  
+  # Load chosen file
+  MCS_res <- readRDS(MCS_lon_files[lon_step])
+  
+  # Unpack old categories
+  MCS_cat <- MCS_res %>%
+    dplyr::select(-event, -cat_correct) %>% 
+    unnest(cols = cat) %>% 
+    filter(row_number() %% 2 == 0) %>% 
+    filter(nrow(cat$event) > 0) %>% 
+    unnest(cols = cat) %>% 
+    ungroup() %>% 
+    mutate(method = "old")
+  
+  # Unpack new categories
+  MCS_cat_correct <- MCS_res %>%
+    dplyr::select(-event, -cat) %>% 
+    unnest(cols = cat_correct) %>% 
+    filter(row_number() %% 2 == 0) %>% 
+    filter(nrow(cat_correct$event) > 0) %>% 
+    unnest(cols = cat_correct) %>% 
+    ungroup() %>% 
+    mutate(method = "new")
+  
+  # Calculate ice categories from new categories
+  MCS_ice_ref <- MCS_res %>%
+    dplyr::select(-cat, -cat_correct) %>% 
+    unnest(cols = event) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(cols = event) %>% 
+    ungroup() %>% 
+    filter(thresh < -1.5, event_no > 0) %>% 
+    mutate(ice = TRUE) %>% 
+    dplyr::select(lon, lat, event_no, ice) %>% 
+    distinct()
+  MCS_cat_ice <- MCS_cat_correct %>% 
+    left_join(MCS_ice_ref, by = c("lon", "lat", "event_no")) %>% 
+    mutate(method = "ice",
+           category = as.character(category),
+           category = case_when(ice == TRUE ~ "V Ice",
+                                TRUE ~ category)) %>% 
+    dplyr::select(-ice)
+  
+  rm(MCS_res); gc()
+  
+  # Combine and process
+  MCS_cat_all <- rbind(MCS_cat, MCS_cat_correct, MCS_cat_ice) %>% 
+    mutate(category = factor(category, levels = c("I Moderate", "II Strong",
+                                                  "III Severe", "IV Extreme", "V Ice")),
+           season = factor(season, levels = c("Spring", "Summer", "Fall", "Winter"))) %>% 
+    group_by(lon, lat, method, category) %>% 
+    mutate(cat_count = n()) %>% 
+    # pivot_wider(values_from = cat_count, names_from = category)
+    ungroup() %>% 
+    group_by(lon, lat, method, category, cat_count) %>% 
+    summarise(p_moderate = mean(p_moderate),
+              p_strong = mean(p_strong),
+              p_severe = mean(p_severe),
+              p_extreme = mean(p_extreme), .groups = "drop")
+  return(MCS_cat_all)
+}
+
+# Calculate global MCS category counts and proportions
+registerDoParallel(cores = 50)
+system.time(MCS_cat_count <- plyr::ldply(1:1440, MCS_cat_count_calc, .parallel = T, .paropts = c(.inorder = F))) # 222 seconds
+saveRDS(MCS_cat_count, "data/MCS_cat_count.Rds")
+
+# Prep data for plotting
+MCS_cat_count <- readRDS("data/MCS_cat_count.Rds")
+MCS_cat_count_n <- MCS_cat_count %>%
+  filter(method == "ice") %>%
+  mutate(category = "total count") %>%
+  group_by(lon, lat, category) %>%
+  summarise(diff = sum(cat_count), .groups = "drop")
+MCS_cat_count_proc <- MCS_cat_count %>%
+  dplyr::select(lon:cat_count) %>%
+  pivot_wider(values_from = cat_count, names_from = c(method, category)) %>%
+  mutate_all(~replace(., is.na(.), 0)) %>%
+  mutate(`I Moderate` = `ice_I Moderate` - `old_I Moderate`,
+         `II Strong` = `ice_II Strong` - `old_II Strong`,
+         `III Severe` = `ice_III Severe` - `old_III Severe`,
+         `IV Extreme` = `ice_IV Extreme` - `old_IV Extreme`,
+         `V Ice` = `ice_V Ice`) %>%
+  dplyr::select(lon, lat, `I Moderate`:`V Ice`) %>%
+  pivot_longer(cols = `I Moderate`:`V Ice`, names_to = "category", values_to = "diff") %>%
+  rbind(MCS_cat_count_n) %>%
+  mutate(category = factor(category, levels = c("I Moderate", "II Strong", "III Severe",
+                                                "IV Extreme", "V Ice", "total count")))
+
+# Four panel map showing difference in count for each pixel per category between old and new methods
+MCS_cat_count_diff_map <- MCS_cat_count_proc %>%
+  # mutate(value = case_when(value <= value_q10 ~ value_q10,
+                           # value >= value_q90 ~ value_q90,
+                           # TRUE ~ value)) %>%
+  filter(lat >= -70, lat <= 70) %>%
+  ggplot(aes(x = lon, y = lat)) +
+  geom_tile(aes(fill = diff)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+  scale_fill_gradient2("Total count: new - original", low = "blue", high = "red") +
+  # scale_fill_viridis_c("Mean\n(annual)") +
+  # coord_cartesian(expand = F, ylim = c(min(OISST_ocean_coords$lat),
+  #                                      max(OISST_ocean_coords$lat))) +
+  coord_quickmap(expand = F, ylim = c(-70, 70)) +
+  facet_wrap(~category, ncol = 2) +
+  theme_void() +
+  # guides(fill = guide_legend(override.aes = list(size = 10))) +
+  # labs(title = var_name) +
+  theme(legend.text = element_text(size = 10),
+        legend.title = element_text(size = 12),
+        legend.position = "top",
+        panel.background = element_rect(fill = "grey90"))
+MCS_cat_count_diff_map
+ggsave("output/MCS_cat_count_diff_map.png", MCS_cat_count_diff_map, width = 7, height = 5)
+```
+
+
 ## Chilly all year long
+
+```{r}
+# Use Japan ice edge as a surface gradient for some pixels on a latitude transect
+MCS_Japan <- load_sub_cat_clim(MCS_lon_files[which(lon_OISST == 147.875)],
+                               date_range = c("1982-01-01", "2020-12-31")) %>%
+  filter(lat > 30, lat < 70)
+
+# Thin out the pixels
+sub_lat <- unique(MCS_Japan$lat)[round(seq(1, length(unique(MCS_Japan$lat)), length.out = 10))]
+
+# Lolliplot showing differences in MCS categories as one moves north
+MCS_cat_lat_compare <- MCS_Japan %>%
+  filter(lat %in% sub_lat) %>%
+  group_by(lon, lat, event_no) %>%
+  filter(intensity == min(intensity, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(lat = factor(lat, levels = rev(unique(lat)))) %>%
+  pivot_longer(cols = category:category_ice) %>%
+  # ggplot(aes(x = t, y = name)) +
+  ggplot(aes(x = event_no, y = name)) +
+  # geom_lolli(aes(colour = value)) +
+  # geom_point(aes(colour = value), shape = 15) +
+  geom_tile(aes(fill = value), colour = "black") +
+  scale_fill_manual("Category", values = MCS_colours) +
+  scale_colour_manual("Category", values = MCS_colours) +
+  scale_x_continuous(expand = c(0, 0)) +
+  facet_wrap(~ lat, ncol = 1) +
+  labs(x = "Event #", y = NULL)
+MCS_cat_lat_compare
+ggsave("output/MCS_cat_lat_compare.png", MCS_cat_lat_compare, height = 16, width = 16)
+```
 
 
 ## Thinking globally, acting locally
+
+```{r}
+# Function that preps MCS ice cat based on a given threshold
+ice_thresh_one <- function(ice_thresh, cat_data){
+  
+  # Subset category data only
+  cat_correct_sub <- cat_data %>%
+    dplyr::select(-event, -cat) %>% 
+    unnest(cols = cat_correct) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    filter(nrow(cat_correct$climatology) > 0) %>%
+    unnest(cols = cat_correct) %>% 
+    ungroup()
+  
+  # Create ice threshold data.frame
+  cat_ice_ref <- cat_data  %>%
+    dplyr::select(-cat, -cat_correct) %>% 
+    unnest(cols = event) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(cols = event) %>% 
+    ungroup() %>% 
+    filter(thresh < ice_thresh, event_no > 0) %>% 
+    mutate(ice = TRUE) %>% 
+    dplyr::select(lon, lat, t, event_no, ice) %>%
+    distinct()
+  cat_ice_sub <- cat_correct_sub %>% 
+    left_join(cat_ice_ref, by = c("lon", "lat", "t", "event_no")) %>% 
+    mutate(category_ice = as.character(category),
+           category_ice = case_when(ice == TRUE ~ "V Ice",
+                                    TRUE ~ category),
+           ice_thresh = ice_thresh) %>% 
+    dplyr::select(-ice, -category) %>% 
+    arrange(lat, t)
+  rm(cat_correct_sub, cat_ice_ref); gc()
+  return(cat_ice_sub)
+}
+
+# Function that loads and preps all MCS data with a given ice threshold
+# cat_lon_file <- MCS_lon_files[612]
+# ice_thresh <- 0
+# ice_thresh_range <- c(-1.8, 0)
+ice_thresh_proc <- function(cat_lon_file, ice_thresh_range){
+  
+  # Load the data
+  paste0("Began run on ",cat_lon_file)
+  cat_data <- readRDS(cat_lon_file)
+  
+  # Create a data.frame with multiple ice thresholds
+  cat_thresh <- plyr::ldply(seq(ice_thresh_range[1], ice_thresh_range[2], by = 0.1),
+                            ice_thresh_one, .parallel = F, cat_data = cat_data)
+  
+  # Complete dates by categories data.frame
+  full_grid <- expand_grid(t = seq(min(cat_thresh$t, na.rm = T), max(cat_thresh$t, na.rm = T), by = "day"), 
+                           category_ice = levels(as.factor(cat_thresh$category_ice)),
+                           ice_thresh = seq(min(cat_thresh$ice_thresh), max(cat_thresh$ice_thresh), by = 0.1))
+  
+  # Calculate total MCS days in the ocean by category
+  cat_ocean <- cat_thresh %>% 
+    dplyr::select(lon, lat, t, category_ice, ice_thresh) %>% 
+    right_join(lon_lat_OISST_area, by = c("lon", "lat")) %>% 
+    group_by(t, category_ice, ice_thresh) %>%
+    summarise(cat_n = n(),
+              cat_area = sum(sq_area), .groups = "drop") %>% 
+    right_join(full_grid, by = c("t", "category_ice", "ice_thresh")) %>% 
+    mutate(cat_n = ifelse(is.na(cat_n), 0, cat_n),
+           cat_n_prop = round(cat_n/nrow(OISST_ocean_coords), 8),
+           cat_area = ifelse(is.na(cat_area), 0, cat_area),
+           cat_area_prop = round(cat_area/sum(lon_lat_OISST_area$sq_area), 8),
+           year = lubridate::year(t)) %>% 
+    arrange(t, category_ice, ice_thresh) %>% 
+    group_by(year, category_ice, ice_thresh) %>%
+    mutate(cat_n_cum = cumsum(cat_n),
+           cat_area_cum = cumsum(cat_area),
+           cat_n_cum_prop = round(cat_n_cum/nrow(OISST_ocean_coords), 8),
+           cat_area_cum_prop = round(cat_area_cum/sum(lon_lat_OISST_area$sq_area), 8)) %>% 
+    ungroup() %>% 
+    dplyr::select(-year)
+  
+  # Final results
+  cat_final <- cat_ocean  %>%
+    filter(lubridate::month(t) == 12, lubridate::day(t) == 31) %>%
+    mutate(t = lubridate::year(t))
+
+  # Clean and exit
+  rm(cat_data, cat_thresh, full_grid, cat_ocean); gc()
+  return(cat_final)
+}
+
+# Function for calculating global MCS results with a moving Ice category threshold
+# ice_thresh_range <- c(-1.8, 0)
+ice_thresh_full <- function(ice_thresh_range){
+  
+  # First run this on all of the MCS lon files
+  # system.time(
+  ice_data_full <- plyr::ldply(MCS_lon_files, ice_thresh_proc, .parallel = T,
+                               ice_thresh_range = ice_thresh_range)
+  # ) # 56 seconds for 1, 63 seconds for 5
+  
+  # Add lon results together
+  ice_data_sum <- ice_data_full %>% 
+    group_by(t, category_ice, ice_thresh) %>% 
+    summarise_all(sum)
+  
+  # save and exit
+  write_rds(ice_data_sum, "data/MCS_ice_thresh_test.Rds")
+}
+
+# Run the analysis
+registerDoParallel(cores = 25)
+ice_thresh_full(c(-1.8, 0))
+
+# Load all results and plot them
+ice_thresh_all <- read_rds("data/MCS_ice_thresh_test.Rds")
+
+# Overall summary
+ice_thresh_fig_a <- ice_thresh_all %>%
+  group_by(ice_thresh, category_ice) %>%
+  summarise(mean_cum_area_prop = mean(cat_area_cum_prop), .groups = "drop") %>%
+  ggplot(aes(x = ice_thresh, y = mean_cum_area_prop)) +
+  geom_bar(aes(fill = category_ice), stat = "identity", show.legend = T,
+           position = position_stack(reverse = TRUE), width = 0.1) +
+  scale_fill_manual("Category", values = MCS_colours) +
+  scale_y_continuous(breaks = c(4, 8, 12)) +
+  labs(y = "Total average \n global MCS days", x = "Threshold for ice category (°C)") +
+  coord_cartesian(expand = F) +
+  theme_bw() +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        axis.title = element_text(size = 15),
+        axis.text = element_text(size = 13))
+# ice_thresh_fig_a
+
+# Time series figure showing how proportions of MCS days change over years from threshold choice
+ice_thresh_fig_b <- ice_thresh_all %>%
+  ggplot() +
+  geom_line(aes(x = t, y = cat_area_cum_prop, colour = ice_thresh, group = ice_thresh)) +
+  scale_colour_viridis_c("Ice Threshold", option = "A") +
+  facet_wrap(~category_ice, scales = "free", nrow = 1) +
+  labs(x = NULL, y = "Global MCS days") +
+  theme_bw()
+# ice_thresh_fig_b
+
+# Create figure with the values per year as slope of linear model of change in category as threshold decreases
+ice_thresh_fig_c <- ice_thresh_all %>%
+  group_by(t, category_ice) %>%
+  do(fit_cat = tidy(lm(cat_area_cum_prop ~ ice_thresh, data = .))) %>%
+  unnest(fit_cat) %>%
+  filter(term == "ice_thresh") %>%
+  ggplot() +
+  geom_boxplot(aes(x = category_ice, y = estimate, fill = category_ice),
+               outlier.colour = NA, show.legend = F) +
+  geom_jitter(aes(x = category_ice, y = estimate, colour = t), width = 0.1) +
+  scale_fill_manual("Category", values = MCS_colours) +
+  scale_colour_viridis_c("Year") +
+  facet_wrap(~category_ice, scales = "free", nrow = 1) +
+  labs(x = NULL, y = "Change in global ocean\n MCS days due to rising\n ice category threshold") +
+  theme_bw()
+# ice_thresh_fig_c
+
+# Combine and save
+ice_thresh_fig <- ggpubr::ggarrange(ice_thresh_fig_a, ice_thresh_fig_b, ice_thresh_fig_c,
+                                    ncol = 1, labels = c("A)", "B)", "C)"))
+# ice_thresh_fig
+ggsave("output/MCS_ice_thresh_test.png", ice_thresh_fig, height = 8, width = 12)
+```
 
 
 ## References
