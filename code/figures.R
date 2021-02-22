@@ -10,6 +10,7 @@ source("code/functions.R")
 # library(ggpubr)
 # library(ggridges)
 library(ggpattern)
+library(ggsci) # Scientific colour palettes
 # library(viridisLite)
 
 
@@ -332,7 +333,7 @@ MCS_sig <- MCS_count_trend %>%
   filter(p.value <= 0.05)
 
 # Figures of trends and annual states
-fig_4_func <- function(var_name, mean_plot = T){
+fig_4_func <- function(var_name, legend_title, mean_plot = T){
   
   # Basic filter
   df <- MCS_count_trend %>% 
@@ -393,7 +394,7 @@ fig_4_func <- function(var_name, mean_plot = T){
   map_res
 }
 
-fig_4a <- fig_4_func("total_count")
+fig_4a <- fig_4_func("total_count", "Count")
 fig_4b <- fig_4_func("dur_mean")
 fig_4c <- fig_4_func("i_max_mean")
 fig_4d <- fig_4_func("i_cum_mean")
@@ -422,10 +423,11 @@ ggsave("graph/MCS/fig_5.pdf", fig_5, height = 7, width = 16)
 # Global annual summaries of MCSs
 
 # Load data
-MCS_total <- readRDS("annual_summary_MCS/MCS_cat_daily_total.Rds")
+MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
 
 # Chose category system
-MCS_total_filter <- filter(MCS_total, name == "category_ice")
+MCS_total_filter <- filter(MCS_total, name == "category") %>% 
+  filter(first_area_cum > 0)
 
 # Stacked barplot of global daily count of MHWs by category
 fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean)) +
@@ -468,8 +470,8 @@ fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop))
   geom_bar(aes(fill = category), stat = "identity", show.legend = T,
            position = position_stack(reverse = TRUE), width = 1) +
   scale_fill_manual("Category", values = MCS_colours) +
-  scale_y_continuous(limits = c(0, 50),
-                     breaks = seq(10, 40, length.out = 3)) +
+  scale_y_continuous(limits = c(0, 30),
+                     breaks = seq(10, 20, length.out = 2)) +
   scale_x_continuous(breaks = seq(1982, 2019, 5)) +
   labs(y = "Total MCS days for ocean", x = NULL) +
   coord_cartesian(expand = F) +
@@ -484,15 +486,15 @@ fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop))
 product_title <- "NOAA OISST"
 min_year <- min(MCS_total_filter$t)
 max_year <- max(MCS_total_filter$t)
-fig_title <- paste0("MCS category summaries: ",min_year," - ",max_year,
-                    "\n",product_title,"; Climatogy period: 1982 - 2011")
+fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
+                    "\n",product_title,"; Climatogy period: 1982-2011")
 
 # Stick them together and save
 fig_6 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_historic,
                            ncol = 3, align = "hv", labels = c("A)", "B)", "C)"), hjust = -0.1,
                            font.label = list(size = 14), common.legend = T, legend = "bottom")
-ggsave(fig_6, filename = paste0("graph/MCS/fig_6.png"), height = 4.25, width = 12)
-ggsave(fig_6, filename = paste0("graph/MCS/fig_6.pdf"), height = 4.25, width = 12)
+ggsave(fig_6, filename = paste0("figures/fig_6.png"), height = 4.25, width = 12)
+ggsave(fig_6, filename = paste0("figures/fig_6.pdf"), height = 4.25, width = 12)
 
 
 # Figure 7 ----------------------------------------------------------------
@@ -527,11 +529,13 @@ fig_7_func <- function(var_name){
     geom_tile(aes(fill = value)) +
     geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
-    scale_fill_gradient2(low = "blue", high = "red") +
+    scale_fill_gradient2(low = "blue", mid = "grey", high = "red") +
     labs(x = NULL, y = NULL, fill = var_name) +
-    theme_void() +
+    # theme_void() +
     theme(panel.border = element_rect(colour = "black", fill = NA),
-          legend.position = "top")
+          legend.position = "top", 
+          axis.text = element_blank(),
+          axis.ticks = element_blank())
 }
 
 # Plot a metric
@@ -567,14 +571,17 @@ fig_7b <- SSTa_stats %>%
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = value)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-  scale_fill_gradient2("Skewness", low = "blue", high = "red") +
+  scale_fill_gradient2("Skewness", low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2]) +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
-  theme_void() +
+  labs(x = NULL, y = NULL, fill = var_name) +
+  # theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "top")
-# map_skew
+        legend.position = "top", 
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+# fig_7b
 
-fig_7 <- ggpubr::ggarrange(fig_7a, fig_7b, ncol = 2, nrow = 1, labels = c("A)", "B)"))
-ggsave("graph/MCS/fig_7.png", fig_7, height = 4, width = 16)
-ggsave("graph/MCS/fig_7.pdf", fig_7, height = 4, width = 16)
+fig_7 <- ggpubr::ggarrange(fig_7a, fig_7b, ncol = 1, nrow = 2, labels = c("A)", "B)"))
+ggsave("figures/fig_7.png", fig_7, height = 8, width = 8)
+ggsave("figures/fig_7.pdf", fig_7, height = 8, width = 8)
 
