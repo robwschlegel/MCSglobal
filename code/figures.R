@@ -11,8 +11,6 @@ library(ggpubr)
 library(ggridges)
 library(ggpattern)
 library(viridisLite)
-library(heatwaveR); packageVersion("heatwaveR")
-library(doParallel); registerDoParallel(cores = 50)
 
 
 # Figure 1 ----------------------------------------------------------------
@@ -37,8 +35,8 @@ fig_1 <- ggplot(fig_1_table, aes(x = lon, y = lat)) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top")
 fig_1
-ggsave("graph/MCS/fig_1.png", fig_1, height = 4, width = 8)
-ggsave("graph/MCS/fig_1.pdf", fig_1, height = 4, width = 8)
+ggsave("figures/fig_1.png", fig_1, height = 4, width = 8)
+ggsave("figures/fig_1.pdf", fig_1, height = 4, width = 8)
 
 
 # Figure 2 ----------------------------------------------------------------

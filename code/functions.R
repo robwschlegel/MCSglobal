@@ -6,8 +6,12 @@
 
 .libPaths(c("~/R-packages", .libPaths()))
 library(tidyverse)
+library(tidync)
 library(padr)
 library(XML)
+# remotes::install_github("robwschlegel/heatwaveR", force = T) # Development version
+library(heatwaveR); packageVersion("heatwaveR")
+library(doParallel); registerDoParallel(cores = 50)
 
 
 # Meta-data ---------------------------------------------------------------

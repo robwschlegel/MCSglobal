@@ -13,7 +13,7 @@
 # 8: SSTa skewness and kurtosis
 # 9: Spatial correlations
 # 10: Check on MCS hole in Antarctica
-
+# 11: Why are MCSs increasing in the Southern Ocean
 
 # 1: Setup ----------------------------------------------------------------
 
@@ -26,9 +26,6 @@ library(tidync)
 library(broom)
 library(e1071)
 library(ggridges)
-# remotes::install_github("robwschlegel/heatwaveR", force = T) # Development version
-library(heatwaveR); packageVersion("heatwaveR")
-library(doParallel); registerDoParallel(cores = 50)
 
 # Coordinates with surface area
 load("metadata/lon_lat_OISST_area.RData")
@@ -977,4 +974,8 @@ hole_MCS <- detect_event(hole_clim_MCS, coldSpells = T)
 
 # Look at results
 hole_MCS_clim <- hole_MCS$climatology
+
+
+# 11: Why are MCSs increasing in the Southern Ocean -----------------------
+
 
