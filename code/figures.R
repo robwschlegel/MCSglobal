@@ -6,11 +6,11 @@
 
 .libPaths(c("~/R-packages", .libPaths()))
 source("code/functions.R")
-library(gganimate)
-library(ggpubr)
-library(ggridges)
+# library(gganimate)
+# library(ggpubr)
+# library(ggridges)
 library(ggpattern)
-library(viridisLite)
+# library(viridisLite)
 
 
 # Figure 1 ----------------------------------------------------------------
@@ -34,7 +34,7 @@ fig_1 <- ggplot(fig_1_table, aes(x = lon, y = lat)) +
   theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top")
-fig_1
+# fig_1
 ggsave("figures/fig_1.png", fig_1, height = 4, width = 8)
 ggsave("figures/fig_1.pdf", fig_1, height = 4, width = 8)
 
@@ -70,7 +70,8 @@ fig_2 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
   geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
   geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
   geom_ribbon_pattern(data = AC_data_clim_sub_sub, aes(ymin = seas, ymax = temp), 
-                      pattern = 'stripe', fill = NA, colour  = 'black') +
+                      pattern_fill = "steelblue1",
+                      pattern = 'stripe', fill = NA, colour  = 'black', alpha = 0.3) +
   geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
   geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
   geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
@@ -122,8 +123,8 @@ fig_2 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
   labs(y = "Temperature (°C)", x = NULL) +
   theme(panel.border = element_rect(colour = "black", fill = NA))
 # fig_2
-ggsave("graph/MCS/fig_2.png", fig_2, width = 12, height = 6)
-ggsave("graph/MCS/fig_2.pdf", fig_2, width = 12, height = 6)
+ggsave("figures/fig_2.png", fig_2, width = 12, height = 6)
+ggsave("figures/fig_2.pdf", fig_2, width = 12, height = 6)
 
 
 # Figure 3 ----------------------------------------------------------------
@@ -155,6 +156,9 @@ TS_data <- load_MCS_ALL(TS_bound)
 # TO DO: Consider searching for the day that has the highest total max intensity pixels
 # Consider allowing this function to ingest multiple datasets so they can be plotted together at the same time
 # This would then allow binning of the figures by row so that they can share legends
+
+# Function for each panel
+
 
 # testers...
 # date_range <- c("2014-01-01", "2016-12-31")
@@ -280,38 +284,38 @@ Hobday_Fig_3_MCS <- function(MCS_data, date_range, intensity_choice = "max", lin
 
 # The 2003 Florida summer event
 FL_2003_summer <- Hobday_Fig_3_MCS(FL_data, c("2003-07-01", "2003-7-31"))
-ggsave("graph/MCS/FL_2003_summer.png", FL_2003_summer, height = 14, width = 5)
+# ggsave("output/FL_2003_summer.png", FL_2003_summer, height = 14, width = 5)
 
 # The 2002 winter event
 FL_2002_winter <- Hobday_Fig_3_MCS(FL_data, c("2002-09-01", "2003-01-31"))
-ggsave("graph/MCS/FL_2002_winter.png", FL_2002_winter, height = 14, width = 5)
+# ggsave("output/FL_2002_winter.png", FL_2002_winter, height = 14, width = 5)
 
 # The biggest event
 FL_max <- Hobday_Fig_3_MCS(FL_data, c("1982-01-01", "2020-12-31"))
-ggsave("graph/MCS/FL_max.png", FL_max, height = 14, width = 5)
+# ggsave("output/FL_max.png", FL_max, height = 14, width = 5)
 
 # Combine all three
 FL_trio <- ggarrange(FL_2003_summer, FL_2002_winter, FL_max, ncol = 3, nrow = 1)
-ggsave("graph/MCS/FL_trio.png", FL_trio, height = 14, width = 15)
+# ggsave("output/FL_trio.png", FL_trio, height = 14, width = 15)
 
 # Atlantic Ocean cold blob of 2014 - 2016
 AO_blob <- Hobday_Fig_3_MCS(AO_data, c("2014-01-01", "2016-12-31"), intensity_choice = "cumulative", line_legend = "right")
-ggsave("graph/MCS/AO_blob.png", AO_blob, height = 14, width = 5)
+# ggsave("output/AO_blob.png", AO_blob, height = 14, width = 5)
 
 # Australia event
 OZ_reef <- Hobday_Fig_3_MCS(OZ_data, c("2003-01-01", "2003-12-31"), intensity_choice = "cumulative")
-ggsave("graph/MCS/OZ_reef.png", OZ_reef, height = 14, width = 5)
+# ggsave("output/OZ_reef.png", OZ_reef, height = 14, width = 5)
 
 # California current
 CC_coast <- Hobday_Fig_3_MCS(CC_data, c("2003-01-01", "2003-12-31"), intensity_choice = "max")
-ggsave("graph/MCS/CC_coast.png", CC_coast, height = 14, width = 5)
+# ggsave("output/CC_coast.png", CC_coast, height = 14, width = 5)
 
 # Taiwan Strait
 TS_coast <- Hobday_Fig_3_MCS(TS_data, c("2007-01-01", "2008-12-31"), intensity_choice = "max")
-ggsave("graph/MCS/TS_coast.png", TS_coast, height = 14, width = 5)
+# ggsave("output/TS_coast.png", TS_coast, height = 14, width = 5)
 
 # Combine the three notorious MCS multi-panel figures
-fig_3 <- ggarrange(TS_coast, FL_2003_summer, AO_blob, ncol = 3, nrow = 1, labels = c("A)", "B)", "C)"))
+fig_3 <- ggarrange(FL_2003_summer, TS_coast, AO_blob, ncol = 3, nrow = 1, labels = c("A)", "B)", "C)"))
 ggsave("graph/MCS/fig_3.png", fig_3, height = 14, width = 15)
 ggsave("graph/MCS/fig_3.pdf", fig_3, height = 14, width = 15)
 
@@ -320,7 +324,7 @@ ggsave("graph/MCS/fig_3.pdf", fig_3, height = 14, width = 15)
 # Maps of the mean metrics
 
 # Load all results into one brick
-MCS_count_trend <- plyr::ldply(MCS_count_trend_files, readRDS, .parallel = T)
+MCS_count_trend <- readRDS("data/MCS_count_trend.Rds")
 unique(MCS_count_trend$name)
 
 # Only the significant values
@@ -396,8 +400,8 @@ fig_4d <- fig_4_func("i_cum_mean")
 
 fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, ncol = 2, nrow = 2, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("graph/MCS/fig_4.png", fig_4, height = 7, width = 16)
-ggsave("graph/MCS/fig_4.pdf", fig_4, height = 7, width = 16)
+ggsave("figure/fig_4.png", fig_4, height = 7, width = 16)
+ggsave("figure/fig_4.pdf", fig_4, height = 7, width = 16)
 
 
 # Figure 5 ----------------------------------------------------------------
