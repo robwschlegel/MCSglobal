@@ -4,11 +4,9 @@ author: "Robert Schlegel"
 date: "`r Sys.Date()`"
 output:
   html_document:
-    df_print: paged
+    code_folding: hide
 description: This vignette explores different approaches to dealing with the detection
   of MCSs in near-ice pixels.
-vignette: |
-  %\VignetteIndexEntry{Vignette Title} %\VignetteEngine{knitr::rmarkdown} %\VignetteEncoding{UTF-8}
 bibliography: bibliography.bib
 ---
 
@@ -16,27 +14,30 @@ bibliography: bibliography.bib
 knitr::opts_chunk$set(fig.width = 6, fig.align = 'center',
                       warning = FALSE, message = FALSE, 
                       tidy = FALSE)
+knitr::opts_knit$set(root.dir = "../")
 ```
 
 
 ## Introduction
 
-While putting together the global analysis of historic marine cold-spells (MCSs) we began to realise that simply inverting the marine heatwave (MHW) algorithm did technically work, but created a couple of unexpected issues that needed to be addressed. These issues stem from the fact that on our planet seawater freezes at roughly -1.8°C. The first, and much more wide-spread issue, was that for most of the near-ice pixels on the planet, the average intra-annual (within one year) variance in sea-surface temperature (SST) could be as little as 0.2°C. The MHW algorithm works on quantiles, and these maths tend not to be very effective with such a small range in values. Indeed, what does it really matter if a MHW/MCS is detected because of a change of 0.05°C from the seasonally expected average? Can that possibly have any effect on local bio/ecology? One obvious solution to this issue, is to not apply the MHW/MCS algorithm to near-ice pixels, but ignoring the issue is not a satisfactory response to it. The other much less common issue is that in some regions of the ocean that do experience a reasonable range in intra-annual SST, it can be possible that the category system will not be able to detect the higher category of events because the the thresholds for these events may be colder than -1.8°C. I know that sentence probably didn't make any sense, which is why we will be providing extensive examples below that illustrate these two issues and outline the steps that one may take to address them. All of the code necessary to do so is documented and we welcome anyone interested in this issue to contact us and to use the code themselves in any projects.
+While putting together the global analysis of historic marine cold-spells (MCSs) we came to learn that simply inverting the marine heatwave (MHW) algorithm did technically work, but created a couple of unexpected issues that needed to be addressed. These issues stem from the fact that on our planet seawater freezes at roughly -1.8°C. The first, and much more wide-spread issue, was that for most of the near-ice pixels on the planet, the average intra-annual (within one year) variance in sea-surface temperature (SST) could be very low (e.g. +-0.2°C). The MHW algorithm works on quantiles, and these maths tend not to be very effective with such a small range in values. Indeed, what does it really matter if a MHW/MCS is detected because of a change of 0.05°C from the seasonally expected average? Can that possibly have any effect on local bio/ecology? One obvious solution to this issue is to not apply the MHW/MCS algorithm to near-ice pixels, but ignoring the issue is not a satisfactory response to it. The other much less common issue we found is that in some regions of the ocean that do experience a reasonable range in intra-annual SST, it can be possible that the category system will not be able to detect the more intense category of events because the the thresholds for these events may be colder than -1.8°C. I know that sentence probably didn't make any sense, which is why we will be providing examples below that illustrate these two issues and outline the steps that one may take to address them. All of the code necessary to do so is documented and we welcome anyone interested in this issue to use the code themselves in any projects, or to contact us as desired.
 
-Before we get into the weeds on all of these technical issue I must reiterate what is stated in the paper that this vignette was written to accompany. That the authors all agreed that ultimately, for a global analysis, it was better to use the "original" definition from @Hobday2016 with a 10th percentile threshold (rather than 90th percentile) because this would provide globally consistent and comparable results. It was also decided to stick to the category convention laid out in @Hobday2018. The options that are laid out below are done so with the intention that they may be more useful to researchers investigating MCSs at a more regional scale. Or perhaps for researchers that need to work in near-ice areas and are not satisfied with how the MCS algorithm responds to those areas.
+Before we get into the weeds on all of these technical issue I must reiterate what is stated in the paper that this vignette was written to accompany. The authors all agreed that ultimately, for a global analysis, it was better to use the "original" definition from @Hobday2016 with a 10th percentile threshold (rather than 90th percentile for MHWs) because this would provide globally consistent and comparable results. It was also decided to stick to the category convention laid out in @Hobday2018. The options that are laid out below are done so with the intention that they may be more useful to researchers investigating MCSs at a more regional scale. Or perhaps for researchers that need to work in near-ice areas and are not satisfied with how the MCS algorithm functions there.
 
-In the following sections we will first look at considerations for how to deal with the less common issue of when it becomes impossible to detect more intense categories of MCSs in a time series. Building off of the theory demonstrated in that section we will then look at what to do about MCS detection in near-ice areas that experience very little intra-annual variance in SST. We will wrap up this vignette by looking at how much these tweaks to the algorithm can have a global effect, and how sensitive global results are to these tweaks.
+In the following sections we will first look at considerations for how to deal with the less common issue of when it becomes impossible to detect more intense categories of MCSs in a time series. Building off of the theory demonstrated in that section we will then look at what to do about MCS detection in near-ice areas that experience very little intra-annual variance in SST. We will wrap up this vignette by looking at how much these tweaks to the algorithm can have a global effect, and how sensitive global results are to these tweaks. It must be noted that all of the following proposed changes only affect the category results, not the MCS metrics themselves (e.g. duration, maximum intensity, rate of onset).
 
+```{r setup}
+# The libraries used in this vignette
+.libPaths(c("~/R-packages", .libPaths()))
+source("code/functions.R")
+```
 
 ## Impossible categories
 
+Reading through the paper that this vignette accompanies, one will perhaps have noticed how infrequently category IV Extreme MCSs occur in the global data. They are much more rare than in MHWs. This is not however what we mean when we refer to "impossible categories". For much of the ocean that never experiences a category IV MCS this is because there is either not enough variance in the time series or perhaps a positive skew in the data. It is still technically possible that most of the ocean could experience the full range of MCS categories, but for some areas the temperature necessary for an anomaly to be labeled as a category IV event would be colder than -1.8°C. The following figure shows the per pixel temperature threshold necessary for a category IV event.
 
-
-```{r}
-# Figures showing what the temperature threshold must be per pixel to reach the four categories
-
+```{r global-MCS-thresh, eval=FALSE}
 # Function for loading and extracting the lowest MCS threshold per pixel
-# lon_step <- 1
 MCS_thresh_func <- function(lon_step){
   MCS_df <- readRDS(MCS_lon_files[lon_step])
   MCS_thresh <- MCS_df %>% 
@@ -55,85 +56,177 @@ MCS_thresh_func <- function(lon_step){
 }
 
 # Load all of the max Cat 4 thresholds
-# doParallel::registerDoParallel(cores = 20)
-# MCS_thresh <- plyr::ldply(1:1440, MCS_thresh_func, .parallel = T, .paropts = c(.inorder = FALSE))
-# saveRDS(MCS_thresh, "data/MCS_thresh.Rds")
-MCS_thresh <- readRDS("data/MCS_thresh.Rds")
-
-# Map of the Cat 4 thresholds for the MCSs
-map_MCS_thresh <- MCS_thresh %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = thresh_4x)) +
-  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-  geom_contour(aes(z = thresh_4x), colour = "black", breaks = c(-1.8, 35)) +
-  scale_fill_gradient2("Cat. IV threshold", low = "blue", high = "red") +
-  coord_quickmap(expand = F, ylim = c(-70, 70)) +
-  theme_void() +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "top")
-
-# Do the same for MHWs
-MHW_thresh_func <- function(lon_step){
-  MHW_thresh <- tidync::tidync(dir("../data/thresh/", full.names = T)[lon_step]) %>%
-    tidync::hyper_tibble() %>%
-    mutate(diff = thresh - seas,
-           thresh_2x = thresh + diff,
-           thresh_3x = thresh_2x + diff,
-           thresh_4x = thresh_3x + diff) %>%
-    group_by(lon, lat) %>%
-    summarise(thresh_4x = max(thresh_4x, na.rm = T), .groups = "drop")
-}
-
-# Load all of the max Cat 4 thresholds
 doParallel::registerDoParallel(cores = 50)
-MHW_thresh <- plyr::ldply(1:1440, MHW_thresh_func, .parallel = T, .paropts = c(.inorder = FALSE))
+MCS_thresh <- plyr::ldply(1:1440, MCS_thresh_func, .parallel = T, .paropts = c(.inorder = FALSE))
+saveRDS(MCS_thresh, "data/MCS_thresh.Rds")
 
 # Map of the Cat 4 thresholds for the MCSs
-map_MHW_thresh <- MHW_thresh %>%
+fig_S1 <- MCS_thresh %>% 
+  filter(lat >= -70, lat <= 70) %>% 
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = thresh_4x)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
   geom_contour(aes(z = thresh_4x), colour = "black", breaks = c(-1.8, 35)) +
-  scale_fill_gradient2("Cat. IV threshold", low = "blue", high = "red") +
+  scale_fill_gradient2("Cat. IV MCS threshold", low = "blue", high = "red") +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
   theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top")
 
 # Combine maps
-# fig_S1 <- ggpubr::ggarrange(map_MCS_thresh, map_MHW_thresh, ncol = 2, nrow = 1, labels = c("A)", "B)"))
-fig_S1 <- map_MCS_thresh
-ggsave("figure/fig_S1.png", fig_S1, height = 4, width = 8)
-ggsave("figure/fig_S1.pdf", fig_S1, height = 4, width = 8)
+ggsave("figures/fig_S1.png", fig_S1, height = 4, width = 8)
+ggsave("figures/fig_S1.pdf", fig_S1, height = 4, width = 8)
+```
+```{r global-MCS-thresh-quiet, echo=FALSE, fig.cap="**Figure S1:** The threshold (C) a temperature anomaly must reach before being labeled as a category IV 'Extreme' MCS. The black contour shows the freezing point of water (-1.8C) below which seawater tmeperatures cannot exceed."}
+MCS_thresh <- readRDS("data/MCS_thresh.Rds")
+MCS_thresh %>% 
+  filter(lat >= -70, lat <= 70) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = thresh_4x)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+  geom_contour(aes(z = thresh_4x), colour = "black", breaks = c(-1.8)) +
+  scale_fill_gradient2("Cat. IV MCS threshold", low = "blue", high = "red") +
+  coord_quickmap(expand = F, ylim = c(-70, 70)) +
+  theme_void() +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "top")
 ```
 
-```{r}
-# The difference between the standard category definition and one corrected for -1.8C
+Note the black contour in the above figure. Any area (blue) within this contour cannot experience a category IV MCS (or perhaps even categories II or III) because the temperature necessary is below the freezing point of seawater (-1.8°C). For much of this area these are the near-ice regions of the ocean that are more problematic for another reason, which we will discuss in the following section. For some areas of the ocean however, such as the Nova Scotian Shelf that experiences very little sea-ice in a given year, it is surprising that this issue can be found so far from the poles. This occurs because the inter-annual variance can be so great in some areas that the method for determining the category thresholds creates unachievably large differences between categories. We will use a pixel from the coast North of Florida in the United States to illustrate this issue, and to show a potential fix for it.
 
-# Extract the barrier island time series from the Florida data
-BI_coords <- FL_data$clim_data %>% 
-  mutate(anom = temp - seas) %>% 
-  filter(anom == min(anom))
-BI_data <- FL_data$clim_data %>% 
-  filter(lon == BI_coords$lon,
-         lat == BI_coords$lat,
-         t >= BI_coords$t-100,
-         t <= BI_coords$t+100) %>% 
+```{r impossible-cat, fig.cap="**Figure S2.1:** The difference in MCS categories for the same event when the Category IV threhsold limit is adjusted for the bottom limit of -1.8C, rather than what the original category convention would dictate."}
+# Extract an extreme example from the barrier islands North of Florida
+FL_SST <- tidync(OISST_files[which(lon_OISST == -75.875)]) %>% 
+  hyper_tibble() %>% 
+  dplyr::rename(t = time, temp = sst) %>% 
+  filter(lat == 35.375) %>% 
+  mutate(t = as.Date(t, origin = "1970-01-01"))
+
+# Detect MCSs climatology
+FL_clim <- detect_event(ts2clm(FL_SST, climatologyPeriod = c("1982-01-01", "2011-12-31"), pctile = 10), 
+                        coldSpells = T)$climatology %>% 
+  # The original category method
   mutate(diff = thresh - seas,
          thresh_2x = thresh + diff,
          thresh_3x = thresh_2x + diff,
          thresh_4x = thresh_3x + diff) %>% 
+  # The proposed fix for "impossible" categories
   mutate(diff_new = case_when(thresh_4x+diff <= -1.8 ~ -(thresh+1.8)/4, TRUE ~ diff),
          thresh_2x_new = thresh + diff_new,
          thresh_3x_new = thresh_2x_new + diff_new,
          thresh_4x_new = thresh_3x_new + diff_new) %>% 
+  # Another fix explained in the following section
   mutate(thresh_5x = ifelse(thresh < -1.5, thresh, -1.5))
-  
 
 # Further subset for correct hatching
-BI_data_sub <- BI_data %>% 
+FL_clim_sub <- FL_clim %>% 
   filter(event_no == 69)
 
+# Top left panel: original categories
+fig_S2a <- FL_clim  %>% 
+  filter(t >= min(FL_clim_sub$t)-30,
+         t <= max(FL_clim_sub$t)+30) %>% 
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
+  # geom_ribbon_pattern(data = FL_clim_sub, aes(ymin = seas, ymax = temp), 
+  #                     pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  # geom_hline(aes(yintercept = -1.8), size = 1, colour = "hotpink") +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
+                                                   size = c(1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA))
+# fig_S2a
+
+# Top middle panel: the categories corrected for -1.8C
+fig_S2b <- FL_clim  %>% 
+  filter(t >= min(FL_clim_sub$t)-30,
+         t <= max(FL_clim_sub$t)+30) %>% 
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
+  # geom_ribbon_pattern(data = FL_clim_sub, aes(ymin = seas, ymax = temp), 
+  #                     pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  # geom_hline(aes(yintercept = -1.8), size = 1, colour = "hotpink") +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
+                                                   size = c(1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA))
+# fig_S2b
+ggpubr::ggarrange(fig_S2a, fig_S2b, ncol = 1, nrow = 2, common.legend = T, legend = "bottom", labels = c("A)", "B)"))
+```
+```{r impossible-cat-quiet, echo=FALSE}
+# Top right panel: the ice categories < -1.5C
+# NB: This is used later below
+fig_S2c <- FL_clim  %>% 
+  filter(t >= min(FL_clim_sub$t)-30,
+         t <= max(FL_clim_sub$t)+30) %>% 
+  ggplot(aes(x = t)) +
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
+  geom_flame(aes(y = thresh_5x, y2 = temp, fill = "Ice")) +
+  # geom_ribbon_pattern(data = FL_clim_sub, aes(ymin = seas, ymax = temp), 
+  #                     pattern = 'stripe', fill = NA, colour  = 'black') +
+  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
+  geom_line(aes(y = thresh_5x, col = "< -1.5C"), size = 0.2, linetype = "solid") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  # geom_hline(aes(yintercept = -1.8), size = 1, colour = "hotpink") +
+  scale_colour_manual(name = "Line colours", values = lineCol,
+                      breaks = c("Temperature", "Climatology", "Threshold",
+                                 "2x Threshold", "3x Threshold", "4x Threshold", "< -1.5C")) +
+  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme", "Ice")) +
+  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
+  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted", "solid"),
+                                                   size = c(1, 1, 1, 1, 1, 1, 1)))) +
+  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA))
+# fig_S2c
+```
+
+In the above figure we can see the MCS categories determined from the original method (A) vs. the newly proposed method here (B). The difference is that the MCS algorithm will detect when the threshold value is approaching -1.8°C and react accordingly. It does this by switching from the standard method, which is based on multiples of the difference between `seas` and `thresh` and replaces this with a proportional difference between `seas` and -1.8°C. Note how even though there is a cold anomaly in excess of -11°C in the given MCS, this is only barely enough to classify the event as category III. This is because the interannual variance is so high that the multiple of the distance from `seas` to `thresh` run away from any realistically achievable anomaly. So by reorienting the category scheme around the bottom limit of -1.8°C it is now always possible to detect any category of event. Whether or not this is worthwhile to do is another conversation that needs to be had. How thermally tolerant must species be in places that experience cold shocks like this? Is it useful to be able to classify events as category IV? My gut says yes, but unfortunately it is beyond the scope of the paper this vignette accompanies to be able to say. It would require a considerable amount of filed and lab work to come to any solid conclusions. From a statistical point of view I can say that this fix does have some knock on effects, which we will now look at in the following section.
+
+## Chilly all year long
+
+In the previous section we looked at how some areas of the ocean, which never normally freeze, have sub-zero temperature thresholds for MCS category classification. This is not ideal and is an artefact of inverting the MHW algorithm. It is however that opinion of the authors that the benefits of the use of the inverted MHW algorithm for MCS detection far outweighs the problems. We proposed a fix to this issue, which has been hard-coded into the R version of the source code, and anyone may apply it with the `category(data,  MCScorrect = T)` argument.
+
+In this section we will focus on the other issue of detecting MCSs globally. In near-ice areas of the ocean there is little thermal variance and so the utility of the MCS algorithm begins to break down. This is particularly noticeable for the category system. The way the system currently works it is nearly impossible to detect category II or more intense events in near-ice areas. As demonstrated above, this is because the category thresholds go below -1.8°C. So then one thinks to apply the same fix above to the near-ice pixels, meaning that we adjust the categories based on the limit of -1.8°C. This is technically easy to do, but leads to the emergence of a new problem. When the range in temperatures is very low, all of the newly adjusted thresholds for the categories practically sit on top of each other. This effectively changes the problem from being only able to detect category I events, to being only able to detect category IV events. So we had a think about it and decided that the best way to address this issue was to introduce a new category V "Ice". This would be determined whenever any single `thresh` value during a MCS was -1.5°C or cooler. The following figure demonstrates what these two different adjustments look like on the same event.
+
+```{r ice-cat, fig.cap="**Figure S2.2:** The difference in MCS categories for the same event when the Category IV threhsold limit is adjusted for the bottom limit of -1.8C, or when any values below -1.5C are considered 'Ice' events."}
 # Extract an ice-edge data point to show the effect of ice category
 ice_SST <- tidync(OISST_files[which(lon_OISST == 147.875)]) %>% 
   hyper_tibble() %>% 
@@ -158,92 +251,6 @@ ice_clim_sub <- ice_clim %>%
   filter(t >= "2019-12-01", t <= "2020-05-30",
          temp <= thresh)
 
-# Top left panel: original categories
-fig_S2a <- BI_data  %>% 
-  ggplot(aes(x = t)) +
-  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
-  geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
-  geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
-  geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
-  geom_ribbon_pattern(data = BI_data_sub, aes(ymin = seas, ymax = temp), 
-                      pattern = 'stripe', fill = NA, colour  = 'black') +
-  geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
-  geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
-  geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
-  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
-  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
-  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
-  scale_colour_manual(name = "Line colours", values = lineCol,
-                      breaks = c("Temperature", "Climatology", "Threshold",
-                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
-  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
-  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
-  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
-  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
-                                                   size = c(1, 1, 1, 1, 1, 1)))) +
-  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "right")
-fig_S2a
-
-# Top middle panel: the categories corrected for -1.8C
-fig_S2b <- BI_data  %>% 
-  ggplot(aes(x = t)) +
-  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
-  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
-  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
-  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
-  geom_ribbon_pattern(data = BI_data_sub, aes(ymin = seas, ymax = temp), 
-                      pattern = 'stripe', fill = NA, colour  = 'black') +
-  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
-  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
-  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
-  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
-  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
-  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
-  scale_colour_manual(name = "Line colours", values = lineCol,
-                      breaks = c("Temperature", "Climatology", "Threshold",
-                                 "2x Threshold", "3x Threshold", "4x Threshold")) +
-  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
-  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
-  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
-  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
-                                                   size = c(1, 1, 1, 1, 1, 1)))) +
-  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "right")
-fig_S2b
-
-# Top right panel: the ice categories < -1.5C
-fig_S2c <- BI_data  %>% 
-  ggplot(aes(x = t)) +
-  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
-  geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
-  geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
-  geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
-  geom_flame(aes(y = thresh_5x, y2 = temp, fill = "Ice")) +
-  geom_ribbon_pattern(data = BI_data_sub, aes(ymin = seas, ymax = temp), 
-                      pattern = 'stripe', fill = NA, colour  = 'black') +
-  geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
-  geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
-  geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
-  geom_line(aes(y = thresh_5x, col = "< -1.5C"), size = 0.2, linetype = "solid") +
-  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
-  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
-  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
-  scale_colour_manual(name = "Line colours", values = lineCol,
-                      breaks = c("Temperature", "Climatology", "Threshold",
-                                 "2x Threshold", "3x Threshold", "4x Threshold", "< -1.5C")) +
-  scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme", "Ice")) +
-  scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
-  scale_y_continuous(limits = c(-10, 30), breaks = c(0, 10, 20), expand = c(0, 0)) +
-  guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted", "solid"),
-                                                   size = c(1, 1, 1, 1, 1, 1, 1)))) +
-  labs(y = expression(paste("Temperature (°C)")), x = NULL) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "right")
-fig_S2c
-
 # Bottom left panel: original categories
 fig_S2d <- ice_clim  %>% 
   filter(t >= "2019-12-01", t <= "2020-05-30") %>%
@@ -252,8 +259,8 @@ fig_S2d <- ice_clim  %>%
   geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
   geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
   geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
-  geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
-                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  # geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
+  #                     pattern = 'stripe', fill = NA, colour  = 'black') +
   geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
   geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
   geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
@@ -270,9 +277,8 @@ fig_S2d <- ice_clim  %>%
   guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
                                                    size = c(1, 1, 1, 1, 1, 1)))) +
   labs(y = expression(paste("Temperature (°C)")), x = NULL) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "right")
-fig_S2d
+  theme(panel.border = element_rect(colour = "black", fill = NA))
+# fig_S2d
 
 # Bottom middle panel: the categories corrected for -1.8C
 fig_S2e <- ice_clim  %>% 
@@ -282,8 +288,8 @@ fig_S2e <- ice_clim  %>%
   geom_flame(aes(y = thresh_2x_new, y2 = temp, fill = "Strong")) +
   geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
   geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
-  geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
-                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  # geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
+  #                     pattern = 'stripe', fill = NA, colour  = 'black') +
   geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
   geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
   geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
@@ -300,9 +306,8 @@ fig_S2e <- ice_clim  %>%
   guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
                                                    size = c(1, 1, 1, 1, 1, 1)))) +
   labs(y = expression(paste("Temperature (°C)")), x = NULL) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "right")
-fig_S2e
+  theme(panel.border = element_rect(colour = "black", fill = NA))
+# fig_S2e
 
 # Bottom right panel: the ice categories < -1.5C
 fig_S2f <- ice_clim  %>% 
@@ -313,8 +318,8 @@ fig_S2f <- ice_clim  %>%
   geom_flame(aes(y = thresh_3x_new, y2 = temp, fill = "Severe")) +
   geom_flame(aes(y = thresh_4x_new, y2 = temp, fill = "Extreme")) +
   geom_flame(aes(y = thresh_5x, y2 = temp, fill = "Ice")) +
-  geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
-                      pattern = 'stripe', fill = NA, colour  = 'black') +
+  # geom_ribbon_pattern(data = ice_clim_sub, aes(ymin = seas, ymax = temp),
+  #                     pattern = 'stripe', fill = NA, colour  = 'black') +
   geom_line(aes(y = thresh_2x_new, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
   geom_line(aes(y = thresh_3x_new, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
   geom_line(aes(y = thresh_4x_new, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
@@ -333,19 +338,109 @@ fig_S2f <- ice_clim  %>%
                                                    size = c(1, 1, 1, 1, 1, 1, 1)))) +
   labs(y = expression(paste("Temperature (°C)")), x = NULL) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "bottom")
-fig_S2f
-
+        legend.position = "bottom",
+        legend.box = "vertical")
+# fig_S2f
+ggpubr::ggarrange(fig_S2d, fig_S2e, fig_S2f, ncol = 1, nrow = 3,
+                  common.legend = T, legend = "bottom", labels = c("A)", "B)", "C)"),
+                  legend.grob = ggpubr::get_legend(fig_S2f))
+```
+```{r fig-S2, echo=FALSE}
 # Combine and save
 fig_S2 <- ggpubr::ggarrange(fig_S2a, fig_S2b, fig_S2c, fig_S2d, fig_S2e, fig_S2f,
                             ncol = 3, nrow = 2, labels = c("A)", "B)", "C)", "D)", "E)", "F)"),
-                            legend = "bottom", common.legend = T, legend.grob = get_legend(fig_S2f))
-ggsave("figure/fig_S2.png", fig_S2, height = 8, width = 15)
-ggsave("figure/fig_S2.pdf", fig_S2, height = 8, width = 15)
+                            legend = "bottom", common.legend = T, legend.grob = ggpubr::get_legend(fig_S2f))
+ggsave("figures/fig_S2.png", fig_S2, height = 8, width = 15)
+ggsave("figures/fig_S2.pdf", fig_S2, height = 8, width = 15)
 ```
 
+Note that the difference in category classification appears very minor when seen in a time series for a single event, but these differences rapidly add up to have a large impact on the global statistics of category occurrence. The next figure shows what the difference category correction techniques look like as one moves North into an area of sea ice presence.
 
-```{r}
+```{r cat-raster, fig.height=12, fig.width=10, fig.cap="**Figure S2.3:** The effect of the different category methods as one moves north into an area with sea-ice."}
+# Use Japan ice edge as a surface gradient for some pixels on a latitude transect
+cat_base <- readRDS(MCS_lon_files[which(lon_OISST == 147.875)])
+
+# The original MCS methodology
+cat_sub <- cat_base %>%
+  dplyr::select(-event, -cat_correct) %>% 
+  unnest(cols = cat) %>% 
+  filter(row_number() %% 2 == 1) %>% 
+  filter(nrow(cat$climatology) > 0) %>%
+  unnest(cols = cat) %>% 
+  ungroup() %>% 
+  filter(t >= "1982-01-01", t <= "2020-12-31",
+         lat > 30, lat < 70)
+
+# Those corrected for the 1.8C freezing point
+cat_correct_sub <- cat_base %>%
+  dplyr::select(-event, -cat) %>% 
+  unnest(cols = cat_correct) %>% 
+  filter(row_number() %% 2 == 1) %>% 
+  filter(nrow(cat_correct$climatology) > 0) %>%
+  unnest(cols = cat_correct) %>% 
+  ungroup() %>% 
+  filter(t >= "1982-01-01", t <= "2020-12-31",
+         lat > 30, lat < 70)
+
+# The categories corrected for near-ice events
+cat_ice_ref <- cat_base  %>%
+  dplyr::select(-cat, -cat_correct) %>% 
+  unnest(cols = event) %>% 
+  filter(row_number() %% 2 == 1) %>% 
+  unnest(cols = event) %>% 
+  ungroup() %>% 
+  filter(thresh < -1.5, event_no > 0,
+         t >= "1982-01-01", t <= "2020-12-31",
+         lat > 30, lat < 70) %>% 
+  mutate(ice = TRUE) %>% 
+  dplyr::select(lon, lat, t, event_no, ice) %>%
+  distinct()
+cat_ice_sub <- cat_correct_sub %>% 
+  left_join(cat_ice_ref, by = c("lon", "lat", "t", "event_no")) %>% 
+  mutate(category_ice = as.character(category),
+         category_ice = case_when(ice == TRUE ~ "V Ice",
+                                  TRUE ~ category)) %>% 
+  dplyr::select(-ice, -category)
+
+# Join and exit
+MCS_Japan <- left_join(cat_sub, cat_correct_sub,
+                       by = c("lon", "lat", "t", "event_no", "intensity")) %>% 
+  left_join(cat_ice_sub, by = c("lon", "lat", "t", "event_no", "intensity")) %>% 
+  dplyr::rename(category = category.x, category_correct = category.y)
+rm(cat_base, cat_sub, cat_correct_sub, cat_ice_ref, cat_ice_sub)
+
+# Thin out the pixels
+sub_lat <- unique(MCS_Japan$lat)[round(seq(1, length(unique(MCS_Japan$lat)), length.out = 10))]
+
+# Rasters showing differences in MCS categories as one moves north
+MCS_cat_lat_compare <- MCS_Japan %>%
+  filter(lat %in% sub_lat) %>%
+  group_by(lon, lat, event_no) %>%
+  filter(intensity == min(intensity, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(lat = factor(lat, levels = rev(unique(lat)))) %>%
+  pivot_longer(cols = category:category_ice) %>%
+  # ggplot(aes(x = t, y = name)) +
+  ggplot(aes(x = event_no, y = name)) +
+  # geom_lolli(aes(colour = value)) +
+  # geom_point(aes(colour = value), shape = 15) +
+  geom_tile(aes(fill = value), colour = "black") +
+  scale_fill_manual("Category", values = MCS_colours) +
+  scale_colour_manual("Category", values = MCS_colours) +
+  scale_x_continuous(expand = c(0, 0)) +
+  facet_wrap(~ lat, ncol = 1) +
+  labs(x = "Event #", y = NULL)
+ggsave("output/MCS_cat_lat_compare.png", MCS_cat_lat_compare, height = 16, width = 16)
+MCS_cat_lat_compare
+```
+
+Note in the above figure that each panel contains three rows (y-axis), with each row showing the category for a given MCS (x-axis). The label of each panel is the latitude of the results being shown. The further north one moves the more the resultant categories for the different methods begin to diverge from the "original" category method. The purpose of this figure is to highlight how these two proposed fixes to the category issues would have no effect on the vast majority of the ocean. But how much of the ocean exactly would be affected, and how sensitive are these proposed fixes?
+
+## Thinking globally, acting locally
+
+We've now provided examples for how to deal with the issues that arise in category detection for MCSs. We'll end this vignette by looking at what effects these different methods have on a global scale. Up first we have to tally all of the categories of MCSs detected in the global historic database.
+
+```{r global-cat-count, eval=FALSE}
 # Function for getting the total count of each category per pixel
 MCS_cat_count_calc <- function(lon_step){
   
@@ -394,7 +489,6 @@ MCS_cat_count_calc <- function(lon_step){
            category = case_when(ice == TRUE ~ "V Ice",
                                 TRUE ~ category)) %>% 
     dplyr::select(-ice)
-  
   rm(MCS_res); gc()
   
   # Combine and process
@@ -418,7 +512,11 @@ MCS_cat_count_calc <- function(lon_step){
 registerDoParallel(cores = 50)
 system.time(MCS_cat_count <- plyr::ldply(1:1440, MCS_cat_count_calc, .parallel = T, .paropts = c(.inorder = F))) # 222 seconds
 saveRDS(MCS_cat_count, "data/MCS_cat_count.Rds")
+```
 
+With this tally we can now determine what effect the use of an "Ice" category has. We do this by finding the difference between the count of MCS categories with the original methodology and the "Ice" methodology. Note in the figure below that the primary difference is that in the near-ice areas the majority of the category I events become "Ice" events.
+
+```{r cat-global-plot, fig.cap="**Figure S3:** The difference in category counts bewteen the original and the 'Ice' methodologies. Note that the primary effect is that most category I events in the near-ice regions of the ocean are converted to 'Ice' events."}
 # Prep data for plotting
 MCS_cat_count <- readRDS("data/MCS_cat_count.Rds")
 MCS_cat_count_n <- MCS_cat_count %>%
@@ -443,17 +541,11 @@ MCS_cat_count_proc <- MCS_cat_count %>%
 
 # Four panel map showing difference in count for each pixel per category between old and new methods
 MCS_cat_count_diff_map <- MCS_cat_count_proc %>%
-  # mutate(value = case_when(value <= value_q10 ~ value_q10,
-                           # value >= value_q90 ~ value_q90,
-                           # TRUE ~ value)) %>%
   filter(lat >= -70, lat <= 70) %>%
   ggplot(aes(x = lon, y = lat)) +
   geom_tile(aes(fill = diff)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
   scale_fill_gradient2("Total count: new - original", low = "blue", high = "red") +
-  # scale_fill_viridis_c("Mean\n(annual)") +
-  # coord_cartesian(expand = F, ylim = c(min(OISST_ocean_coords$lat),
-  #                                      max(OISST_ocean_coords$lat))) +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
   facet_wrap(~category, ncol = 2) +
   theme_void() +
@@ -463,48 +555,13 @@ MCS_cat_count_diff_map <- MCS_cat_count_proc %>%
         legend.title = element_text(size = 12),
         legend.position = "top",
         panel.background = element_rect(fill = "grey90"))
-MCS_cat_count_diff_map
 ggsave("output/MCS_cat_count_diff_map.png", MCS_cat_count_diff_map, width = 7, height = 5)
+MCS_cat_count_diff_map
 ```
 
+Note that we have rather arbitrarily chosen -1.5°C as the bottom limit for determining if the category of a MCS is an "Ice" event or not. In the following code we will re-run the "Ice" category threshold on the global data from -1.8°C to 0°C to see how sensitive the global MCS database is to the choice of the "Ice" threshold. Note that these sensitivity tests are being performed on top of the first correction posed in this vignette. That being the adjusting for the categories based on the heard bottom limit of -1.8°C. Remember that the practical effect this has is to exaggerate the detection of category IV events in near-ice areas.
 
-## Chilly all year long
-
-```{r}
-# Use Japan ice edge as a surface gradient for some pixels on a latitude transect
-MCS_Japan <- load_sub_cat_clim(MCS_lon_files[which(lon_OISST == 147.875)],
-                               date_range = c("1982-01-01", "2020-12-31")) %>%
-  filter(lat > 30, lat < 70)
-
-# Thin out the pixels
-sub_lat <- unique(MCS_Japan$lat)[round(seq(1, length(unique(MCS_Japan$lat)), length.out = 10))]
-
-# Lolliplot showing differences in MCS categories as one moves north
-MCS_cat_lat_compare <- MCS_Japan %>%
-  filter(lat %in% sub_lat) %>%
-  group_by(lon, lat, event_no) %>%
-  filter(intensity == min(intensity, na.rm = T)) %>%
-  ungroup() %>%
-  mutate(lat = factor(lat, levels = rev(unique(lat)))) %>%
-  pivot_longer(cols = category:category_ice) %>%
-  # ggplot(aes(x = t, y = name)) +
-  ggplot(aes(x = event_no, y = name)) +
-  # geom_lolli(aes(colour = value)) +
-  # geom_point(aes(colour = value), shape = 15) +
-  geom_tile(aes(fill = value), colour = "black") +
-  scale_fill_manual("Category", values = MCS_colours) +
-  scale_colour_manual("Category", values = MCS_colours) +
-  scale_x_continuous(expand = c(0, 0)) +
-  facet_wrap(~ lat, ncol = 1) +
-  labs(x = "Event #", y = NULL)
-MCS_cat_lat_compare
-ggsave("output/MCS_cat_lat_compare.png", MCS_cat_lat_compare, height = 16, width = 16)
-```
-
-
-## Thinking globally, acting locally
-
-```{r}
+```{r ice-sensitivity-calc, eval=FALSE}
 # Function that preps MCS ice cat based on a given threshold
 ice_thresh_one <- function(ice_thresh, cat_data){
   
@@ -541,9 +598,6 @@ ice_thresh_one <- function(ice_thresh, cat_data){
 }
 
 # Function that loads and preps all MCS data with a given ice threshold
-# cat_lon_file <- MCS_lon_files[612]
-# ice_thresh <- 0
-# ice_thresh_range <- c(-1.8, 0)
 ice_thresh_proc <- function(cat_lon_file, ice_thresh_range){
   
   # Load the data
@@ -592,7 +646,6 @@ ice_thresh_proc <- function(cat_lon_file, ice_thresh_range){
 }
 
 # Function for calculating global MCS results with a moving Ice category threshold
-# ice_thresh_range <- c(-1.8, 0)
 ice_thresh_full <- function(ice_thresh_range){
   
   # First run this on all of the MCS lon files
@@ -613,7 +666,8 @@ ice_thresh_full <- function(ice_thresh_range){
 # Run the analysis
 registerDoParallel(cores = 25)
 ice_thresh_full(c(-1.8, 0))
-
+```
+```{r ice-sensitivity-plot, fig.height=8, fig.width=10,  fig.cap="**Figure S4:** Global sensitivity analysis of 'Ice' category threshold choice. A) The total average of all MCS days ever recorded for each category (y-axis) depending on the threshold choice for the 'Ice' category (x-axis). Note that at a value of -1.8 there are no 'Ice' category events, just a lot of category IV events. Also note that, generally speaking, the choice of threshold is not very sensitive. B) The average MCS days (y-axis) per year (x-axis) depending on the choice of 'Ice' threshold (line colour). The different categories are shown in different facets. Mote how lare the effect is on the more intense categories when moving from -1.8 to -1.7 to -1.6. C) These boxplots show the several facets of information simultaneously. Note that the y-axes differ, and each facet shows a different category. The data points in the boxplots are the trends (linear model) in the change in the count of days in a given year per 0.1C step difference in the ice category threshold (similar to panel A). The individual points in the boxplots show the data for each year. Note that the more recent years tend to experience stronger impacts of the 'Ice' category method."}
 # Load all results and plot them
 ice_thresh_all <- read_rds("data/MCS_ice_thresh_test.Rds")
 
@@ -638,7 +692,7 @@ ice_thresh_fig_a <- ice_thresh_all %>%
 ice_thresh_fig_b <- ice_thresh_all %>%
   ggplot() +
   geom_line(aes(x = t, y = cat_area_cum_prop, colour = ice_thresh, group = ice_thresh)) +
-  scale_colour_viridis_c("Ice Threshold", option = "A") +
+  scale_colour_viridis_c("Ice\nThreshold", option = "A") +
   facet_wrap(~category_ice, scales = "free", nrow = 1) +
   labs(x = NULL, y = "Global MCS days") +
   theme_bw()
@@ -647,7 +701,7 @@ ice_thresh_fig_b <- ice_thresh_all %>%
 # Create figure with the values per year as slope of linear model of change in category as threshold decreases
 ice_thresh_fig_c <- ice_thresh_all %>%
   group_by(t, category_ice) %>%
-  do(fit_cat = tidy(lm(cat_area_cum_prop ~ ice_thresh, data = .))) %>%
+  do(fit_cat = broom::tidy(lm(cat_area_cum_prop ~ ice_thresh, data = .))) %>%
   unnest(fit_cat) %>%
   filter(term == "ice_thresh") %>%
   ggplot() +
@@ -664,10 +718,10 @@ ice_thresh_fig_c <- ice_thresh_all %>%
 # Combine and save
 ice_thresh_fig <- ggpubr::ggarrange(ice_thresh_fig_a, ice_thresh_fig_b, ice_thresh_fig_c,
                                     ncol = 1, labels = c("A)", "B)", "C)"))
-# ice_thresh_fig
 ggsave("output/MCS_ice_thresh_test.png", ice_thresh_fig, height = 8, width = 12)
+ice_thresh_fig
 ```
 
+WHile this figure is very complex, I think that it ultimately makes the case for an "Ice" threshold choice of of somewhere between -1.7°C to -1.4°C, depending on one's use and the desired clarity of outcome. I know that isn't very exact advice, but remember that at the outset of this vignette it was stated up front that these possible fixes to the methodology were just that, possibilities. The authors ultimately decided that these changes to the category detection introduced more complexity than they were worth. At least on a global context and for any comparability to MHW results. We can however certainly see use cases for the MCS algorithm in which one may want to use these fixes and so we hope that this vignette may serve as a resource to someone at some point.
 
 ## References
-
