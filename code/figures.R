@@ -395,38 +395,40 @@ fig_4_func <- function(var_name, legend_title, mean_plot = T){
     mutate(val = case_when(val <= q05 ~ q05,
                            val >= q95 ~ q95,
                            TRUE ~ val)) %>% 
-      ggplot(aes(x = lon, y = lat)) +
-      geom_raster(aes(fill = val)) +
-      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-      # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
-      coord_quickmap(expand = F, ylim = c(-70, 70)) +
-      labs(x = NULL, y = NULL, fill = legend_title) +
-      # theme_void() +
-      theme(panel.border = element_rect(colour = "black", fill = NA),
-            legend.position = "top", 
-            legend.title = element_text(size = 14, vjust = 1),
-            axis.text = element_blank(),
-            axis.ticks = element_blank())
+    ggplot(aes(x = lon, y = lat)) +
+    geom_raster(aes(fill = val)) +
+    geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+    # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
+    coord_quickmap(expand = F, ylim = c(-70, 70)) +
+    labs(x = NULL, y = NULL, fill = legend_title) +
+    guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
+    # theme_void() +
+    theme(panel.border = element_rect(colour = "black", fill = NA),
+          legend.position = "top",
+          legend.title = element_text(size = 14, vjust = 1),
+          legend.text = element_text(size = 12),
+          axis.text = element_blank(),
+          axis.ticks = element_blank())
   
   # Add the colour palette
   if(mean_plot){
     map_res <- map_res +
       scale_fill_viridis_c(option = viridis_choice, direction = vir_dir, 
                            breaks = c(q05, q50, q95), 
-                           labels = c(paste0("<",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
   } else{
     map_res <- map_res +
       scale_fill_gradient2(low = slope_low, high = slope_high,
                            breaks = c(q05, q50, q95), 
-                           labels = c(paste0("<",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
   }
   map_res
 }
 
 fig_4a <- fig_4_func("total_count", "Count (n)")
-fig_4b <- fig_4_func("dur_mean", "Duration (days)")
-fig_4c <- fig_4_func("i_max_mean", "Max. intensity (°C)")
-fig_4d <- fig_4_func("i_cum_mean", "Cum. intensity (°C days)")
+fig_4b <- fig_4_func("dur_mean", "Duration\n(days)")
+fig_4c <- fig_4_func("i_max_mean", "Maximum\nintensity (°C)")
+fig_4d <- fig_4_func("i_cum_mean", "Cumulative\nintensity (°C days)")
 
 fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, ncol = 2, nrow = 2, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
@@ -438,9 +440,9 @@ ggsave("figures/fig_4.pdf", fig_4, height = 6, width = 11)
 # Maps of the trends in the metrics
 
 fig_5a <- fig_4_func("total_count", "Count (n)", mean_plot = F)
-fig_5b <- fig_4_func("dur_mean", "Duration (days)", mean_plot = F)
-fig_5c <- fig_4_func("i_max_mean", "Max. intensity (°C)", mean_plot = F)
-fig_5d <- fig_4_func("i_cum_mean", "Cum. intensity (°C days)", mean_plot = F)
+fig_5b <- fig_4_func("dur_mean", "Duration\n(days)", mean_plot = F)
+fig_5c <- fig_4_func("i_max_mean", "Maximum\nintensity (°C)", mean_plot = F)
+fig_5d <- fig_4_func("i_cum_mean", "Cumulative\nintensity (°C days)", mean_plot = F)
 
 fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, ncol = 2, nrow = 2, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
