@@ -548,23 +548,31 @@ fig_7_func <- function(var_name){
            lat >= -70, lat <= 70)
   
   # Find 10th and 90th quantiles to round off tails for plotting
-  q10 <- quantile(df$value, 0.1)
-  q90 <- quantile(df$value, 0.9)
+  q05 <- quantile(df$value, 0.05, names = F)
+  q10 <- quantile(df$value, 0.1, names = F)
+  q50 <- quantile(df$value, 0.5, names = F)
+  q90 <- quantile(df$value, 0.9, names = F)
+  q95 <- quantile(df$value, 0.95, names = F)
   
   # Figure
   df %>% 
-    mutate(value = case_when(value <= value_q10 ~ value_q10,
-                             value >= value_q90 ~ value_q90,
+    mutate(value = case_when(value <= q05 ~ q05,
+                             value >= q95 ~ q95,
                              TRUE ~ value)) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = value)) +
     geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
-    scale_fill_gradient2(low = "blue", mid = "grey", high = "red") +
+    scale_fill_gradient2(low = "blue", mid = "grey", high = "red",
+                         breaks = c(q05, q50, q95), 
+                         labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")),) +
+    guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
     labs(x = NULL, y = NULL, fill = var_name) +
     # theme_void() +
     theme(panel.border = element_rect(colour = "black", fill = NA),
-          legend.position = "top", 
+          legend.position = "top",
+          legend.title = element_text(size = 14, vjust = 1),
+          legend.text = element_text(size = 12),
           axis.text = element_blank(),
           axis.ticks = element_blank())
 }
@@ -578,7 +586,8 @@ SSTa_stats <- readRDS("data/SSTa_stats.Rds") %>%
   dplyr::select(lon:anom_kurt) %>% 
   pivot_longer(c(anom_kurt, anom_skew)) %>% 
   mutate(name = case_when(name == "anom_kurt" ~ "kurtosis",
-                          name == "anom_skew" ~ "skewness"))
+                          name == "anom_skew" ~ "skewness")) %>% 
+  filter(lat >= -70, lat <= 70)
 
 # Prep data for plotting
 # SSTa_prep <- SSTa_stats %>% 
@@ -590,29 +599,39 @@ SSTa_stats <- readRDS("data/SSTa_stats.Rds") %>%
 # Find upper skewness and kurtosis quantiles
 skew_quants <- SSTa_stats %>% 
   filter(name == "skewness", season == "Total") %>% 
-  summarise(q10 = quantile(value, 0.1),
-            q90 = quantile(value, 0.9))
+  summarise(q05 = quantile(value, 0.05, names = F),
+            q10 = quantile(value, 0.1, names = F),
+            q50 = quantile(value, 0.5, names = F),
+            q90 = quantile(value, 0.9, names = F),
+            q95 = quantile(value, 0.95, names = F))
 
 # Map of skewness per pixel
 fig_7b <- SSTa_stats %>% 
   filter(name == "skewness", season == "Total") %>% 
-  mutate(value = case_when(value <= skew_quants$q10 ~ skew_quants$q10,
-                           value >= skew_quants$q90 ~ skew_quants$q90,
+  mutate(value = case_when(value <= skew_quants$q05 ~ skew_quants$q05,
+                           value >= skew_quants$q95 ~ skew_quants$q95,
                            TRUE ~ value)) %>% 
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = value)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-  scale_fill_gradient2("Skewness", low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2]) +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
-  labs(x = NULL, y = NULL, fill = var_name) +
+  scale_fill_gradient2("Skewness", low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2],
+                       breaks = c(skew_quants$q05, skew_quants$q50, skew_quants$q95), 
+                       labels = c(paste0("  <",round(skew_quants$q05, 1)), 
+                                  round(skew_quants$q50, 1), 
+                                  paste0(round(skew_quants$q95, 1),">"))) +
+  guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
+  labs(x = NULL, y = NULL) +
   # theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "top", 
+        legend.position = "top",
+        legend.title = element_text(size = 14, vjust = 1),
+        legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
 # fig_7b
 
-fig_7 <- ggpubr::ggarrange(fig_7a, fig_7b, ncol = 1, nrow = 2, labels = c("A)", "B)"))
-ggsave("figures/fig_7.png", fig_7, height = 8, width = 8)
-ggsave("figures/fig_7.pdf", fig_7, height = 8, width = 8)
+fig_7 <- ggpubr::ggarrange(fig_7a, fig_7b, ncol = 2, nrow = 1, labels = c("A)", "B)"))
+ggsave("figures/fig_7.png", fig_7, height = 3, width = 11)
+ggsave("figures/fig_7.pdf", fig_7, height = 3, width = 11)
 
