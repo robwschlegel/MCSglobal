@@ -335,88 +335,117 @@ MCS_sig <- MCS_count_trend %>%
 # Figures of trends and annual states
 fig_4_func <- function(var_name, legend_title, mean_plot = T){
   
+  # Determine which column to plot
+  if(mean_plot){
+    type_filter <- "value"
+  } else{
+    type_filter <- "slope"
+  }
+  
   # Basic filter
   df <- MCS_count_trend %>% 
     filter(name == var_name,
-           lat >= -70, lat <= 70)
+           lat >= -70, lat <= 70) %>% 
+    pivot_longer(cols = c(value, slope), 
+                 names_to = "type", values_to = "val") %>% 
+    filter(type == type_filter)
   
   # Significant results
   df_p <- df %>% 
     filter(p.value <= 0.05)
   
-  # Find 10th and 90th quantiles to round off tails for plotting
-  value_q10 <- quantile(df$value, 0.1)
-  value_q90 <- quantile(df$value, 0.9)
-  slope_q10 <- quantile(df$slope, 0.1)
-  slope_q90 <- quantile(df$slope, 0.9)
+  # Find quantiles to round off tails for plotting
+  q05 <- quantile(df$val, 0.05, names = F)
+  q10 <- quantile(df$val, 0.1, names = F)
+  q50 <- quantile(df$val, 0.5, names = F)
+  q90 <- quantile(df$val, 0.9, names = F)
+  q95 <- quantile(df$val, 0.95, names = F)
   
-  if(var_name == "total_count"){
+  # Determine colour palette
+  if(var_name == "total_count") {
     viridis_choice <- "A"
-  } else if(var_name == "dur_mean"){
+    vir_dir <- 1
+    slope_low <- "plum"
+    slope_high <- "gold"
+    rn <- 1
+    if(!mean_plot) rn <- 2
+  } else if(var_name == "dur_mean") {
     viridis_choice <- "C"
-  } else{
+    vir_dir <- 1
+    slope_low <- "orange"
+    slope_high <- "olivedrab"
+    rn <- 1
+  } else if(var_name == "i_max_mean") {
+    viridis_choice <- "B"
+    vir_dir <- -1
+    slope_low <- "blue"
+    slope_high <- "red"
+    rn <- 1
+    if(!mean_plot) rn <- 2
+  }  else {
     viridis_choice <- "D"
+    vir_dir <- -1
+    slope_low <- "blue"
+    slope_high <- "red"
+    rn <- 1
   }
   
+  # The figure without colour palette
+  map_res <- df %>% 
+    mutate(val = case_when(val <= q05 ~ q05,
+                           val >= q95 ~ q95,
+                           TRUE ~ val)) %>% 
+      ggplot(aes(x = lon, y = lat)) +
+      geom_raster(aes(fill = val)) +
+      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+      # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
+      coord_quickmap(expand = F, ylim = c(-70, 70)) +
+      labs(x = NULL, y = NULL, fill = legend_title) +
+      # theme_void() +
+      theme(panel.border = element_rect(colour = "black", fill = NA),
+            legend.position = "top", 
+            legend.title = element_text(size = 14, vjust = 1),
+            axis.text = element_blank(),
+            axis.ticks = element_blank())
+  
+  # Add the colour palette
   if(mean_plot){
-    # The mean value map
-    map_res <- df %>% 
-      mutate(value = case_when(value <= value_q10 ~ value_q10,
-                               value >= value_q90 ~ value_q90,
-                               TRUE ~ value)) %>% 
-      ggplot(aes(x = lon, y = lat)) +
-      geom_raster(aes(fill = value)) +
-      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-      scale_fill_viridis_c(paste0(var_name,"\n(annual)"), option = viridis_choice) +
-      coord_quickmap(expand = F, ylim = c(-70, 70)) +
-      theme_void() +
-      theme(panel.border = element_rect(colour = "black", fill = NA),
-            legend.position = "top")
-    # mean_map 
+    map_res <- map_res +
+      scale_fill_viridis_c(option = viridis_choice, direction = vir_dir, 
+                           breaks = c(q05, q50, q95), 
+                           labels = c(paste0("<",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
   } else{
-    # The trend map
-    map_res <- df %>% 
-      mutate(slope = case_when(slope <= slope_q10 ~ slope_q10,
-                               slope >= slope_q90 ~ slope_q90,
-                               TRUE ~ slope)) %>% 
-      ggplot(aes(x = lon, y = lat)) +
-      geom_raster(aes(fill = slope)) +
-      # geom_point(data = MCS_sig, size = 0.0001) +
-      # geom_polygon_pattern(data = MCS_sig, pattern = 'crosshatch', fill = NA, colour  = 'black') +
-      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-      scale_fill_gradient2(paste0(var_name,"\n(annual)"), low = "blue", high = "red") +
-      coord_quickmap(expand = F, ylim = c(-70, 70)) +
-      theme_void() +
-      theme(panel.border = element_rect(colour = "black", fill = NA),
-            legend.position = "top")
-    # trend_map 
+    map_res <- map_res +
+      scale_fill_gradient2(low = slope_low, high = slope_high,
+                           breaks = c(q05, q50, q95), 
+                           labels = c(paste0("<",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
   }
   map_res
 }
 
-fig_4a <- fig_4_func("total_count", "Count")
-fig_4b <- fig_4_func("dur_mean")
-fig_4c <- fig_4_func("i_max_mean")
-fig_4d <- fig_4_func("i_cum_mean")
+fig_4a <- fig_4_func("total_count", "Count (n)")
+fig_4b <- fig_4_func("dur_mean", "Duration (days)")
+fig_4c <- fig_4_func("i_max_mean", "Max. intensity (°C)")
+fig_4d <- fig_4_func("i_cum_mean", "Cum. intensity (°C days)")
 
 fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, ncol = 2, nrow = 2, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("figure/fig_4.png", fig_4, height = 7, width = 16)
-ggsave("figure/fig_4.pdf", fig_4, height = 7, width = 16)
+ggsave("figures/fig_4.png", fig_4, height = 6, width = 11)
+ggsave("figures/fig_4.pdf", fig_4, height = 6, width = 11)
 
 
 # Figure 5 ----------------------------------------------------------------
 # Maps of the trends in the metrics
 
-fig_5a <- fig_4_func("total_count", mean_plot = F)
-fig_5b <- fig_4_func("dur_mean", mean_plot = F)
-fig_5c <- fig_4_func("i_max_mean", mean_plot = F)
-fig_5d <- fig_4_func("i_cum_mean", mean_plot = F)
+fig_5a <- fig_4_func("total_count", "Count (n)", mean_plot = F)
+fig_5b <- fig_4_func("dur_mean", "Duration (days)", mean_plot = F)
+fig_5c <- fig_4_func("i_max_mean", "Max. intensity (°C)", mean_plot = F)
+fig_5d <- fig_4_func("i_cum_mean", "Cum. intensity (°C days)", mean_plot = F)
 
 fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, ncol = 2, nrow = 2, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("graph/MCS/fig_5.png", fig_5, height = 7, width = 16)
-ggsave("graph/MCS/fig_5.pdf", fig_5, height = 7, width = 16)
+ggsave("figures/fig_5.png", fig_5, height = 6, width = 11)
+ggsave("figures/fig_5.pdf", fig_5, height = 6, width = 11)
 
 
 # Figure 6 ----------------------------------------------------------------
@@ -517,8 +546,8 @@ fig_7_func <- function(var_name){
            lat >= -70, lat <= 70)
   
   # Find 10th and 90th quantiles to round off tails for plotting
-  value_q10 <- quantile(df$value, 0.1)
-  value_q90 <- quantile(df$value, 0.9)
+  q10 <- quantile(df$value, 0.1)
+  q90 <- quantile(df$value, 0.9)
   
   # Figure
   df %>% 
