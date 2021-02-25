@@ -84,7 +84,7 @@ MCS_calc <- function(lon_row){
 # ) # 150 seconds
 
 # Ran on Saturday, October 31st, 2020
-# plyr::l_ply(1:1440, .fun = MCS_calc, .parallel = T)
+plyr::l_ply(1:1440, .fun = MCS_calc, .parallel = T)
 # Takes just over two hours on 50 cores
 
 
@@ -191,14 +191,14 @@ cat_clim_global_daily <- function(date_range){
 }
 
 # NB: Better not to run the entire 30+ years at once
-# registerDoParallel(cores = 50)
-# cat_clim_global_daily(date_range = c(as.Date("1982-01-01"), as.Date("1990-12-31"))) # ~20 minutes
-# registerDoParallel(cores = 50)
-# cat_clim_global_daily(date_range = c(as.Date("1991-01-01"), as.Date("2000-12-31")))
-# registerDoParallel(cores = 50)
-# cat_clim_global_daily(date_range = c(as.Date("2001-01-01"), as.Date("2010-12-31")))
-# registerDoParallel(cores = 50)
-# cat_clim_global_daily(date_range = c(as.Date("2011-01-01"), as.Date("2020-12-31")))
+registerDoParallel(cores = 50)
+cat_clim_global_daily(date_range = c(as.Date("1982-01-01"), as.Date("1990-12-31"))) # ~20 minutes
+registerDoParallel(cores = 50)
+cat_clim_global_daily(date_range = c(as.Date("1991-01-01"), as.Date("2000-12-31")))
+registerDoParallel(cores = 50)
+cat_clim_global_daily(date_range = c(as.Date("2001-01-01"), as.Date("2010-12-31")))
+registerDoParallel(cores = 50)
+cat_clim_global_daily(date_range = c(as.Date("2011-01-01"), as.Date("2020-12-31")))
 
 
 # 4: Annual summaries -----------------------------------------------------
@@ -439,8 +439,8 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
 
 # Run ALL years
 # NB: Running this in parallel will cause a proper stack overflow
-# registerDoParallel(cores = 50)
-# plyr::l_ply(1982:2020, MCS_annual_state, .parallel = F, force_calc = T) # ~60 seconds for one
+registerDoParallel(cores = 50)
+plyr::l_ply(1982:2020, MCS_annual_state, .parallel = F, force_calc = T) # ~60 seconds for one
 
 
 # 5: Total summaries ------------------------------------------------------
@@ -473,7 +473,7 @@ MCS_total_state <- function(){
 }
 
 ## Run it
-# MCS_total_state()
+MCS_total_state()
 
 ## Create figures
 MCS_total_state_fig <- function(df){
@@ -556,8 +556,8 @@ MCS_total_state_fig <- function(df){
 }
 
 ## Run it
-# MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
-# MCS_total_state_fig(MCS_total)
+MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
+MCS_total_state_fig(MCS_total)
 
 
 # 6: Trends ---------------------------------------------------------------
@@ -703,7 +703,7 @@ MCS_trend_calc <- function(lon_step){
 # ) # 49 seconds
 
 # Run all
-# registerDoParallel(cores = 50)
+registerDoParallel(cores = 50)
 system.time(MCS_count_trend <- plyr::ldply(1:1440, MCS_trend_calc, .parallel = T, .paropts = c(.inorder = F))) # 2737 seconds
 # NB: This file is too large to host on GitHub
 saveRDS(MCS_count_trend, "data/MCS_count_trend.Rds")
