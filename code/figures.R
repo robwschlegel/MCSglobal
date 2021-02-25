@@ -453,6 +453,8 @@ ggsave("figures/fig_5.pdf", fig_5, height = 6, width = 11)
 # Figure 6 ----------------------------------------------------------------
 # Global annual summaries of MCSs
 
+# TO DO: Add bars with black border showing the SOuthern Ocean contribution
+
 # Load data
 MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
 

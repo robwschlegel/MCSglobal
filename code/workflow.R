@@ -83,7 +83,7 @@ MCS_calc <- function(lon_row){
 #   MCS_calc(1)
 # ) # 150 seconds
 
-# Ran on Saturday, October 31st, 2020
+# Ran on Thursday, February 25th, 2021
 plyr::l_ply(1:1440, .fun = MCS_calc, .parallel = T)
 # Takes just over two hours on 50 cores
 
@@ -826,7 +826,6 @@ saveRDS(MHW_v_MCS, "data/MHW_v_MCS.Rds")
 # 8: SSTa skewness and kurtosis -------------------------------------------
 
 # testers...
-# file_name_MCS <- MCS_RData[1]
 # lon_step <- lon_OISST[1]
 skew_kurt_calc <- function(lon_step){
   
@@ -844,10 +843,12 @@ skew_kurt_calc <- function(lon_step){
                               month %in% c("Apr", "May", "Jun") & lat < 0 ~ "Autumn",
                               month %in% c("Jul", "Aug", "Sep") & lat < 0 ~ "Winter",
                               month %in% c("Oct", "Nov", "Dec") & lat < 0 ~ "Spring")) %>% 
-    dplyr::select(-month)
+    dplyr::select(lon, lat, season, anom)
+  rm(df); gc()
   
   # Combine data frames and calculate skewness and kurtosis
-  skew_kurt <- df %>%
+  # system.time(
+  skew_kurt <- df_season %>%
     mutate(season = "Total") %>% 
     rbind(., df_season) %>% 
     mutate(season = factor(season, levels = c("Total", "Spring", "Summer", "Autumn", "Winter"))) %>% 
@@ -858,11 +859,12 @@ skew_kurt_calc <- function(lon_step){
               anom_mean = round(mean(anom), 2),
               anom_max = max(anom),
               anom_sd = round(sd(anom), 4), .groups = "drop")
+  # ) # 3 seconds
   return(skew_kurt)
 }
 
 # Calculate global SSTa stats
-registerDoParallel(cores = 25)
+registerDoParallel(cores = 20)
 system.time(SSTa_stats <- plyr::ldply(lon_OISST, skew_kurt_calc, .parallel = T, .paropts = c(.inorder = F))) # 1001 seconds
 # NB: This file is too large to host on GitHub
 saveRDS(SSTa_stats, "data/SSTa_stats.Rds")
