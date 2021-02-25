@@ -637,3 +637,8 @@ fig_7 <- ggpubr::ggarrange(fig_7a, fig_7b, ncol = 2, nrow = 1, labels = c("A)", 
 ggsave("figures/fig_7.png", fig_7, height = 3, width = 11)
 ggsave("figures/fig_7.pdf", fig_7, height = 3, width = 11)
 
+
+# Figure 8 ----------------------------------------------------------------
+
+# Could be interesting to show a global time series of the difference between average MCS and MHW days over the whole ocean.
+
