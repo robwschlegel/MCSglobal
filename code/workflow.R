@@ -14,6 +14,8 @@
 # 9: Spatial correlations
 # 10: Check on MCS hole in Antarctica
 # 11: Why are MCSs increasing in the Southern Ocean
+# 12: Global stats by ice area and hemisphere
+
 
 # 1: Setup ----------------------------------------------------------------
 
@@ -37,12 +39,9 @@ load("metadata/lon_lat_OISST_area.RData")
 #   mutate(time = as.Date(time, origin = "1970-01-01")) %>% 
 #   dplyr::rename(t = time, temp = sst)
 # SST_clim <- ts2clm(SST, climatologyPeriod = c("1982-01-01", "2011-12-31"), pctile = 10)
-# SST_event <- detect_event(SST_clim, coldSpells = T)
+# SST_event <- detect_event(SST_clim, coldSpells = T, categories = T, climatology = T, season = "peak")
 # SST_event_event <- SST_event$event
 # SST_event_clim <- SST_event$climatology
-# SST_cat <- category(SST_event, climatology = T, season = "peak")
-# SST_cat_event <- SST_cat$event
-# SST_cat_clim <- SST_cat$climatology
 # write_csv(SST, "test_SST.csv")
 
 
@@ -254,7 +253,7 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
     # The earliest date of the highest category of event + the sum of intensities
     # system.time(
     MCS_cat_pixel <- MCS_cat %>% 
-      dplyr::select(-event_no) %>% 
+      dplyr::select(-event_no) %>%
       na.omit() %>% 
       plyr::ddply(., c("lon"), max_event_date, .parallel = T) %>% 
       distinct() %>%
@@ -980,4 +979,173 @@ hole_MCS_clim <- hole_MCS$climatology
 
 # 11: Why are MCSs increasing in the Southern Ocean -----------------------
 
+# Plot pixel location choice
+ggplot() + borders() +
+  geom_point(aes(x = -8.375, y = -66.875))
+
+# Check on one pixel
+SST <- tidync(OISST_files[which(lon_OISST == -8.375)]) %>%
+  hyper_filter(lat = lat == -66.875) %>%
+  hyper_tibble() %>%
+  mutate(time = as.Date(time, origin = "1970-01-01")) %>%
+  dplyr::rename(t = time, temp = sst)
+SST_clim <- ts2clm(SST, climatologyPeriod = c("1982-01-01", "2011-12-31"), pctile = 10)
+SST_event <- detect_event(SST_clim, coldSpells = T, categories = T, climatology = T, season = "peak")
+SST_event_event <- SST_event$event
+SST_event_clim <- SST_event$climatology %>% 
+  mutate(diff = thresh - seas,
+         thresh_2x = thresh + diff,
+         thresh_3x = thresh_2x + diff,
+         thresh_4x = thresh_3x + diff)
+
+# Plot the evnts in facetted years
+SST_event_clim %>% 
+  mutate(Year = lubridate::year(t),
+         month = lubridate::month(t)) %>% 
+  filter(t >= "2015-01-01",
+         t <= "2020-12-31",
+         month %in% 7:10
+  ) %>% 
+  ggplot(aes(x = t, y = temp)) +
+  # MCS flames
+  geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
+  geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
+  geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
+  geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
+  # MHW lines
+  geom_line(aes(y = seas), colour = "grey20", size = 0.7) +
+  geom_line(aes(y = thresh), colour = "darkgreen", size = 0.7) +
+  geom_line(aes(y = temp), colour = "black", size = 0.6) +
+  # Other
+  scale_fill_manual(name = NULL, values = MCS_palette, guide = FALSE) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "2 months") +
+  # scale_y_continuous(limits = c(11, 26.5)) +
+  labs(y = "Temperature (°C)", x = NULL) +
+  coord_cartesian(expand = F) +
+  facet_wrap(~Year, scales = "free_x", ncol = 2) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = c(0.7, 0.1),
+        legend.direction = "horizontal")
+
+# Lolliplot
+lolli_plot(SST_event, metric = "intensity_cumulative")
+
+
+# 12: Global stats by ice area and hemisphere -----------------------------
+
+# Determine near-ice pixels
+ice_pixel_func <- function(lon_step){
+  lon_val <- lon_OISST[lon_step]
+  pixels <- sst_seas_thresh_merge(lon_val, as.Date("1982-01-01")) %>%
+    group_by(lon, lat) %>% 
+    mutate(ice = case_when(min(temp) <= -1.7 ~ TRUE, TRUE ~ FALSE)) %>% 
+    dplyr::select(lon, lat, ice) %>% 
+    distinct()
+  return(pixels)
+}
+
+# Create ice pixel data.frame
+registerDoParallel(cores = 50)
+# system.time(
+lon_lat_OISST_ice <- plyr::ldply(1:1440, ice_pixel_func, .parallel = T)
+# ) # 353 seconds on 50 cores
+# NB: This is too large to host on GitHub
+# save(lon_lat_OISST_ice, file = "metadata/lon_lat_OISST_ice.RData")
+load("metadata/lon_lat_OISST_ice.RData")
+
+# Function for calculating global trends by ice and hemisphere
+annual_mean_func <- function(lon_step){
+  
+  # Load data
+  MCS_cat <- readRDS(MCS_lon_files[lon_step])
+  
+  # Unpack clim and join to ice coords
+  MCS_clim <- MCS_cat %>%
+    dplyr::select(-cat, -cat_correct) %>% 
+    unnest(cols = event) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(cols = event) %>%
+    ungroup() %>% 
+    left_join(lon_lat_OISST_ice, by = c("lon", "lat")) %>% 
+    ungroup() %>% 
+    filter(t <= "2020-12-31")
+  
+  # Mean annual temperatures
+  temp_annual <- MCS_clim %>% 
+    mutate(year = lubridate::year(t)) %>% 
+    group_by(lon, lat, year) %>%
+    summarise(temp_annual = round(mean(temp, na.rm = T), 2), .groups = "drop")
+  
+  # Calculate annual: count, mean intensity, duration, SST
+  MCS_annual <- MCS_clim %>% 
+    mutate(year = lubridate::year(t),
+           intensity = temp-thresh) %>% 
+    filter(event_no >= 0) %>% 
+    group_by(lon, lat, year) %>%
+    summarise(count_annual = max(event_no)-min(event_no)+1,
+              intensity_annual = round(mean(intensity), 2),
+              duration_annual = n(), .groups = "drop") %>% 
+    right_join(temp_annual, by = c("lon", "lat", "year")) %>% 
+    replace(is.na(.), 0) %>% 
+    arrange(lon, lat, year)
+  return(MCS_annual)
+}
+
+# Calculate annual means per pixel
+registerDoParallel(cores = 50)
+system.time(
+MCS_annual_mean <- plyr::ldply(1:1440, annual_mean_func, .parallel = T)
+) # 355 seconds
+
+# Join with ice data and create global means
+MCS_annual_global_mean <- MCS_annual_mean %>% 
+  left_join(lon_lat_OISST_ice, by = c("lon", "lat")) %>% 
+  mutate(ice_group = case_when(ice & lat <= 0 ~ "ice S",
+                               ice & lat > 0 ~ "ice N",
+                               TRUE ~ "ocean")) %>% 
+  group_by(year, ice_group) %>% 
+  summarise_all("mean") %>% 
+  dplyr::select(-ice, -lon, -lat)
+
+# Long data for analysis
+MCS_annual_global_mean_long <- MCS_annual_global_mean %>% 
+  pivot_longer(cols = count_annual:temp_annual)
+
+# Trends
+MCS_annual_global_mean_trends <- MCS_annual_global_mean_long %>% 
+  group_by(ice_group, name) %>% 
+  nest() %>% 
+  mutate(model = map(data, ~lm(value ~ year, data = .)),
+         model_out = map(model, ~broom::tidy(.))) %>% 
+  dplyr::select(-data, -model) %>% 
+  unnest(cols = model_out) %>% 
+  ungroup() %>% 
+  filter(term == "year") %>% 
+  dplyr::rename(slope = estimate) %>% 
+  dplyr::select(ice_group, name, slope, p.value) %>% 
+  mutate(slope = round(slope, 4), 
+         p.value = round(p.value, 4))
+
+# ANOVA
+MCS_annual_global_mean_aov <- MCS_annual_global_mean_long %>% 
+  group_by(name) %>% 
+  nest() %>% 
+  mutate(model = map(data, ~aov(value ~ ice_group, data = .)),
+         model_out = map(model, ~broom::tidy(.))) %>% 
+  dplyr::select(-data, -model) %>% 
+  unnest(cols = model_out) %>% 
+  ungroup() %>% 
+  filter(term == "ice_group") %>% 
+  dplyr::select(name, term, df, p.value) %>% 
+  mutate(p.value = round(p.value, 4))
+
+# Plot the trends
+MCS_annual_global_mean_long %>% 
+  ggplot(aes(x = year, y = value)) +
+  geom_line(aes(colour = ice_group)) +
+  geom_point(aes(colour = ice_group)) +
+  geom_smooth(aes(colour = ice_group), method = "lm") +
+  facet_wrap(~name, scales = "free_y")
+# Add labels for trend lines and ANOVA p.values
 

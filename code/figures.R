@@ -6,12 +6,8 @@
 
 .libPaths(c("~/R-packages", .libPaths()))
 source("code/functions.R")
-# library(gganimate)
-# library(ggpubr)
-# library(ggridges)
 library(ggpattern)
 library(ggsci) # Scientific colour palettes
-# library(viridisLite)
 
 
 # Figure 1 ----------------------------------------------------------------
