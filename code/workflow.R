@@ -702,10 +702,10 @@ MCS_trend_calc <- function(lon_step){
 # ) # 49 seconds
 
 # Run all
-registerDoParallel(cores = 50)
-system.time(MCS_count_trend <- plyr::ldply(1:1440, MCS_trend_calc, .parallel = T, .paropts = c(.inorder = F))) # 2737 seconds
+# registerDoParallel(cores = 50)
+# system.time(MCS_count_trend <- plyr::ldply(1:1440, MCS_trend_calc, .parallel = T, .paropts = c(.inorder = F))) # 2737 seconds
 # NB: This file is too large to host on GitHub
-saveRDS(MCS_count_trend, "data/MCS_count_trend.Rds")
+# saveRDS(MCS_count_trend, "data/MCS_count_trend.Rds")
 
 # Figures of trends and annual states
 var_mean_trend_fig <- function(var_name){
@@ -1004,7 +1004,7 @@ SST_event_clim %>%
          month = lubridate::month(t)) %>% 
   filter(t >= "2015-01-01",
          t <= "2020-12-31",
-         month %in% 7:10
+         month %in% 7:11
   ) %>% 
   ggplot(aes(x = t, y = temp)) +
   # MCS flames
@@ -1046,9 +1046,9 @@ ice_pixel_func <- function(lon_step){
 }
 
 # Create ice pixel data.frame
-registerDoParallel(cores = 50)
+# registerDoParallel(cores = 50)
 # system.time(
-lon_lat_OISST_ice <- plyr::ldply(1:1440, ice_pixel_func, .parallel = T)
+# lon_lat_OISST_ice <- plyr::ldply(1:1440, ice_pixel_func, .parallel = T)
 # ) # 353 seconds on 50 cores
 # NB: This is too large to host on GitHub
 # save(lon_lat_OISST_ice, file = "metadata/lon_lat_OISST_ice.RData")
@@ -1061,7 +1061,18 @@ annual_mean_func <- function(lon_step){
   MCS_cat <- readRDS(MCS_lon_files[lon_step])
   
   # Unpack clim and join to ice coords
-  MCS_clim <- MCS_cat %>%
+  MCS_event <- MCS_cat %>%
+    dplyr::select(-cat, -cat_correct) %>% 
+    unnest(cols = event) %>% 
+    filter(row_number() %% 2 == 0) %>% 
+    unnest(cols = event) %>%
+    ungroup() %>% 
+    left_join(lon_lat_OISST_ice, by = c("lon", "lat")) %>% 
+    ungroup() %>% 
+    filter(date_peak <= "2020-12-31")
+  
+  # Mean annual temperatures
+  temp_annual <- MCS_cat %>%
     dplyr::select(-cat, -cat_correct) %>% 
     unnest(cols = event) %>% 
     filter(row_number() %% 2 == 1) %>% 
@@ -1069,23 +1080,24 @@ annual_mean_func <- function(lon_step){
     ungroup() %>% 
     left_join(lon_lat_OISST_ice, by = c("lon", "lat")) %>% 
     ungroup() %>% 
-    filter(t <= "2020-12-31")
-  
-  # Mean annual temperatures
-  temp_annual <- MCS_clim %>% 
+    filter(t <= "2020-12-31") %>% 
     mutate(year = lubridate::year(t)) %>% 
     group_by(lon, lat, year) %>%
     summarise(temp_annual = round(mean(temp, na.rm = T), 2), .groups = "drop")
   
+  # Free up some RAM
+  rm(MCS_cat); gc()
+  
   # Calculate annual: count, mean intensity, duration, SST
-  MCS_annual <- MCS_clim %>% 
-    mutate(year = lubridate::year(t),
-           intensity = temp-thresh) %>% 
-    filter(event_no >= 0) %>% 
+  MCS_annual <- MCS_event %>% 
+    mutate(year = lubridate::year(date_peak)) %>% 
     group_by(lon, lat, year) %>%
-    summarise(count_annual = max(event_no)-min(event_no)+1,
-              intensity_annual = round(mean(intensity), 2),
-              duration_annual = n(), .groups = "drop") %>% 
+    summarise(count_annual = n(),
+              duration = round(mean(duration)),
+              intensity_mean = round(mean(intensity_mean), 2),
+              intensity_max = round(mean(intensity_max), 2),
+              intensity_cumulative = round(mean(intensity_cumulative), 2), 
+              .groups = "drop") %>% 
     right_join(temp_annual, by = c("lon", "lat", "year")) %>% 
     replace(is.na(.), 0) %>% 
     arrange(lon, lat, year)
@@ -1096,7 +1108,9 @@ annual_mean_func <- function(lon_step){
 registerDoParallel(cores = 50)
 system.time(
 MCS_annual_mean <- plyr::ldply(1:1440, annual_mean_func, .parallel = T)
-) # 355 seconds
+) # 336 seconds
+# write_rds(MCS_annual_mean, "data/MCS_annual_mean.Rds")
+MCS_annual_mean <- read_rds("data/MCS_annual_mean.Rds")
 
 # Join with ice data and create global means
 MCS_annual_global_mean <- MCS_annual_mean %>% 

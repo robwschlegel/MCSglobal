@@ -421,11 +421,13 @@ fig_4_func <- function(var_name, legend_title, mean_plot = T){
   map_res
 }
 
+# Create panels
 fig_4a <- fig_4_func("total_count", "Count (n)")
 fig_4b <- fig_4_func("dur_mean", "Duration\n(days)")
 fig_4c <- fig_4_func("i_max_mean", "Maximum\nintensity (°C)")
 fig_4d <- fig_4_func("i_cum_mean", "Cumulative\nintensity (°C days)")
 
+# Combine and save
 fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, ncol = 2, nrow = 2, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
 ggsave("figures/fig_4.png", fig_4, height = 6, width = 11)
@@ -433,97 +435,135 @@ ggsave("figures/fig_4.pdf", fig_4, height = 6, width = 11)
 
 
 # Figure 5 ----------------------------------------------------------------
-# Maps of the trends in the metrics
+# Grouped global trends in MCS metrics
 
-fig_5a <- fig_4_func("total_count", "Count (n)", mean_plot = F)
-fig_5b <- fig_4_func("dur_mean", "Duration\n(days)", mean_plot = F)
-fig_5c <- fig_4_func("i_max_mean", "Maximum\nintensity (°C)", mean_plot = F)
-fig_5d <- fig_4_func("i_cum_mean", "Cumulative\nintensity (°C days)", mean_plot = F)
+# Load annual data
+MCS_annual_mean <- read_rds("data/MCS_annual_mean.Rds")
 
-fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, ncol = 2, nrow = 2, 
-                           align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("figures/fig_5.png", fig_5, height = 6, width = 11)
-ggsave("figures/fig_5.pdf", fig_5, height = 6, width = 11)
+# Join with ice data and create global means
+MCS_annual_global_mean <- MCS_annual_mean %>% 
+  left_join(lon_lat_OISST_ice, by = c("lon", "lat")) %>% 
+  mutate(ice_group = case_when(ice & lat <= 0 ~ "ice S",
+                               ice & lat > 0 ~ "ice N",
+                               TRUE ~ "ocean")) %>% 
+  group_by(year, ice_group) %>% 
+  summarise_all("mean", .groups = "drop") %>% 
+  dplyr::select(-ice, -lon, -lat) %>% 
+  group_by(ice_group) %>% 
+  mutate(temp_anom = temp_annual - mean(temp_annual, na.rm = T)) %>% 
+  ungroup()
+
+# Long data for analysis
+MCS_annual_global_mean_long <- MCS_annual_global_mean %>% 
+  pivot_longer(cols = count_annual:temp_anom)
+
+# Trends
+MCS_annual_global_mean_trends <- MCS_annual_global_mean_long %>% 
+  group_by(ice_group, name) %>% 
+  nest() %>% 
+  mutate(model = map(data, ~lm(value ~ year, data = .)),
+         model_out = map(model, ~broom::tidy(.))) %>% 
+  dplyr::select(-data, -model) %>% 
+  unnest(cols = model_out) %>% 
+  ungroup() %>% 
+  filter(term == "year") %>% 
+  dplyr::rename(slope = estimate) %>% 
+  dplyr::select(ice_group, name, slope, p.value) %>% 
+  mutate(slope = round(slope, 4), 
+         p.value = round(p.value, 4))
+
+# ANOVA
+MCS_annual_global_mean_aov <- MCS_annual_global_mean_long %>% 
+  group_by(name) %>% 
+  nest() %>% 
+  mutate(model = map(data, ~aov(value ~ ice_group, data = .)),
+         model_out = map(model, ~broom::tidy(.))) %>% 
+  dplyr::select(-data, -model) %>% 
+  unnest(cols = model_out) %>% 
+  ungroup() %>% 
+  filter(term == "ice_group") %>% 
+  dplyr::select(name, term, df, p.value) %>% 
+  mutate(p.value = round(p.value, 4))
+
+# Function for creating line plots
+fig_5_func <- function(var_name, y_title, y_val){
+  
+  # Subset slope and ANOVA results
+  sub_slope <- MCS_annual_global_mean_trends %>% 
+    filter(name == var_name) %>% 
+    mutate(ice_group = ifelse(ice_group == "ocean", "open", ice_group),
+           slope = paste0("m = ",round(slope, 3)),
+           p.value = case_when(p.value < 0.01 ~ "p < 0.01",
+                               p.value >= 0.01 ~ paste0("p = ",round(p.value,2))),
+           label = paste0(slope,"; ",p.value))
+  sub_ANOVA <- MCS_annual_global_mean_aov %>% 
+    filter(name == var_name) %>% 
+    mutate(p.value = case_when(p.value < 0.01 ~ "p < 0.01",
+                               p.value >= 0.01 ~ paste0("p = ",round(p.value,2))),
+           label = paste0("ANOVA: ",p.value))
+
+  # Plot the chosen variable
+  MCS_annual_global_mean_long %>% 
+    filter(name == var_name) %>% 
+    mutate(ice_group = ifelse(ice_group == "ocean", "open", ice_group)) %>% 
+    ggplot(aes(x = year, y = value)) +
+    # Add lines, points, and lm
+    geom_line(aes(colour = ice_group), show.legend = F) +
+    geom_point(aes(colour = ice_group)) +
+    geom_smooth(aes(colour = ice_group), show.legend = F, method = "lm", formula = "y ~ x", size = 2) +
+    # Add slope labels
+    geom_label(data = sub_slope, label.size = 3, show.legend = F,
+               aes(x = c(1990, 2000, 2010), y = y_val[1], label = label, colour = ice_group)) +
+    geom_label(data = sub_slope, label.size = 0,
+               aes(x = c(1990, 2000, 2010), y = y_val[1], label = label)) +
+    # Add ANOVA label
+    geom_label(data = sub_ANOVA, label.size = 3, show.legend = F,
+               aes(x = 2000, y = y_val[2], label = label), colour = "darkorchid") +
+    geom_label(data = sub_ANOVA, label.size = 0,
+               aes(x = 2000, y = y_val[2], label = label)) +
+    # Other
+    scale_x_continuous(breaks = seq(1982, 2020, 5), expand = c(0, 0)) +
+    scale_color_brewer(palette = "Paired") +
+    labs(y = y_title, x = NULL, colour = "Ocean group") +
+    guides(colour = guide_legend(override.aes = list(shape = 15, size = 10))) +
+    # coord_cartesian(expand = F) +
+    theme(panel.border = element_rect(colour = "black", fill = NA),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 16))
+    # facet_wrap(~name, scales = "free_y")
+}
+
+# Create the panels
+fig_5a <- fig_5_func("count_annual", "Count (n)", c(3.35, 0.45))
+fig_5b <- fig_5_func("duration", "Duration\n(days)", c(62, -5))
+fig_5c <- fig_5_func("intensity_max", "Maximum\nintensity (°C)", c(-0.31, -1.57))
+fig_5d <- fig_5_func("intensity_cumulative", "Cumulative\nintensity (°C days)", c(0, -30))
+fig_5e <- fig_5_func("temp_anom", "Temperature\nanomaly (°C)", c(0.335, -0.32))
+
+# Combine and save
+fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, fig_5e, ncol = 1, nrow = 5, 
+                           align = "hv", labels = c("A)", "B)", "C)", "D)", "E)"), common.legend = T)
+ggsave("figures/fig_5.png", fig_5, height = 11, width = 7)
+ggsave("figures/fig_5.pdf", fig_5, height = 11, width = 7)
 
 
 # Figure 6 ----------------------------------------------------------------
-# Global annual summaries of MCSs
+# Maps of the trends in the metrics
+# NB: This requires functions from Figure 4 code section
 
-# TO DO: Add bars with black border showing the SOuthern Ocean contribution
+# Crate panels
+fig_6a <- fig_4_func("total_count", "Count (n)", mean_plot = F)
+fig_6b <- fig_4_func("dur_mean", "Duration\n(days)", mean_plot = F)
+fig_6c <- fig_4_func("i_max_mean", "Maximum\nintensity (°C)", mean_plot = F)
+fig_6d <- fig_4_func("i_cum_mean", "Cumulative\nintensity (°C days)", mean_plot = F)
 
-# Load data
-MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
-
-# Chose category system
-MCS_total_filter <- filter(MCS_total, name == "category") %>% 
-  filter(first_area_cum > 0)
-
-# Stacked barplot of global daily count of MHWs by category
-fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean)) +
-  geom_bar(aes(fill = category), stat = "identity", show.legend = T,
-           position = position_stack(reverse = TRUE), width = 1) +
-  scale_fill_manual("Category", values = MCS_colours) +
-  scale_y_continuous(limits = c(0, 1),
-                     breaks = seq(0.2, 0.8, length.out = 4),
-                     labels = paste0(seq(20, 80, by = 20), "%")) +
-  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
-  labs(y = "Average daily MCS \ncoverage for ocean", x = NULL) +
-  coord_cartesian(expand = F) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 16))
-# fig_count_historic
-
-# Stacked barplot of cumulative percent of ocean affected by MHWs
-fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)) +
-  geom_bar(aes(fill = category), stat = "identity", show.legend = T,
-           position = position_stack(reverse = TRUE), width = 1) +
-  scale_fill_manual("Category", values = MCS_colours) +
-  scale_y_continuous(limits = c(0, 1),
-                     breaks = seq(0.2, 0.8, length.out = 4),
-                     labels = paste0(seq(20, 80, by = 20), "%")) +
-  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
-  labs(y = "Total ocean experienceing \nat least one MCS", x = NULL) +
-  coord_cartesian(expand = F) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 16))
-# fig_cum_historic
-
-# Stacked barplot of average cumulative MHW days per pixel
-fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)) +
-  geom_bar(aes(fill = category), stat = "identity", show.legend = T,
-           position = position_stack(reverse = TRUE), width = 1) +
-  scale_fill_manual("Category", values = MCS_colours) +
-  scale_y_continuous(limits = c(0, 30),
-                     breaks = seq(10, 20, length.out = 2)) +
-  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
-  labs(y = "Total MCS days for ocean", x = NULL) +
-  coord_cartesian(expand = F) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 16))
-# fig_prop_historic
-
-# Create the figure title
-product_title <- "NOAA OISST"
-min_year <- min(MCS_total_filter$t)
-max_year <- max(MCS_total_filter$t)
-fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
-                    "\n",product_title,"; Climatogy period: 1982-2011")
-
-# Stick them together and save
-fig_6 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_historic,
-                           ncol = 3, align = "hv", labels = c("A)", "B)", "C)"), hjust = -0.1,
-                           font.label = list(size = 14), common.legend = T, legend = "bottom")
-ggsave(fig_6, filename = paste0("figures/fig_6.png"), height = 4.25, width = 12)
-ggsave(fig_6, filename = paste0("figures/fig_6.pdf"), height = 4.25, width = 12)
+# Combine and save
+fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, fig_6c, fig_6d, ncol = 2, nrow = 2, 
+                           align = "hv", labels = c("A)", "B)", "C)", "D)"))
+ggsave("figures/fig_6.png", fig_6, height = 6, width = 11)
+ggsave("figures/fig_6.pdf", fig_6, height = 6, width = 11)
 
 
 # Figure 7 ----------------------------------------------------------------
@@ -538,7 +578,7 @@ MHW_v_MCS_long <- MHW_v_MCS %>%
   na.omit()
 
 # Figure for plotting the panels
-fig_7_func <- function(var_name){
+fig_7_func <- function(var_name, rn = 2){
   
   # Basic filter
   df <- MHW_v_MCS_long %>% 
@@ -635,6 +675,86 @@ ggsave("figures/fig_7.pdf", fig_7, height = 3, width = 11)
 
 
 # Figure 8 ----------------------------------------------------------------
+# Global annual summaries of MCSs
+
+# TO DO: Add bars with black border showing the Southern Ocean contribution
+
+# Load data
+MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
+
+# Chose category system
+MCS_total_filter <- filter(MCS_total, name == "category") %>% 
+  filter(first_area_cum > 0)
+
+# Stacked barplot of global daily count of MHWs by category
+fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean)) +
+  geom_bar(aes(fill = category), stat = "identity", show.legend = T,
+           position = position_stack(reverse = TRUE), width = 1) +
+  scale_fill_manual("Category", values = MCS_colours) +
+  scale_y_continuous(limits = c(0, 1),
+                     breaks = seq(0.2, 0.8, length.out = 4),
+                     labels = paste0(seq(20, 80, by = 20), "%")) +
+  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
+  labs(y = "Average daily MCS \ncoverage for ocean", x = NULL) +
+  coord_cartesian(expand = F) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 16))
+# fig_count_historic
+
+# Stacked barplot of cumulative percent of ocean affected by MHWs
+fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)) +
+  geom_bar(aes(fill = category), stat = "identity", show.legend = T,
+           position = position_stack(reverse = TRUE), width = 1) +
+  scale_fill_manual("Category", values = MCS_colours) +
+  scale_y_continuous(limits = c(0, 1),
+                     breaks = seq(0.2, 0.8, length.out = 4),
+                     labels = paste0(seq(20, 80, by = 20), "%")) +
+  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
+  labs(y = "Total ocean experienceing \nat least one MCS", x = NULL) +
+  coord_cartesian(expand = F) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 16))
+# fig_cum_historic
+
+# Stacked barplot of average cumulative MHW days per pixel
+fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)) +
+  geom_bar(aes(fill = category), stat = "identity", show.legend = T,
+           position = position_stack(reverse = TRUE), width = 1) +
+  scale_fill_manual("Category", values = MCS_colours) +
+  scale_y_continuous(limits = c(0, 30),
+                     breaks = seq(10, 20, length.out = 2)) +
+  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
+  labs(y = "Total MCS days for ocean", x = NULL) +
+  coord_cartesian(expand = F) +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 16))
+# fig_prop_historic
+
+# Create the figure title
+product_title <- "NOAA OISST"
+min_year <- min(MCS_total_filter$t)
+max_year <- max(MCS_total_filter$t)
+fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
+                    "\n",product_title,"; Climatogy period: 1982-2011")
+
+# Stick them together and save
+fig_8 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_historic,
+                           ncol = 3, align = "hv", labels = c("A)", "B)", "C)"), hjust = -0.1,
+                           font.label = list(size = 14), common.legend = T, legend = "bottom")
+ggsave(fig_8, filename = paste0("figures/fig_8.png"), height = 4.25, width = 12)
+ggsave(fig_8, filename = paste0("figures/fig_8.pdf"), height = 4.25, width = 12)
+
+
+# Figure 9 ----------------------------------------------------------------
 
 # Could be interesting to show a global time series of the difference between average MCS and MHW days over the whole ocean.
 

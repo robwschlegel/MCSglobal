@@ -46,3 +46,4 @@ metadata/OISST_ocean_coords.Rdata
 data/MCS_count_trend.Rds
 data/SSTa_stats.Rds
 data/MCS_cat_count.Rds
+data/MCS_annual_mean.Rds
