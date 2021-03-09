@@ -129,7 +129,8 @@ fig_1_data <- rbind(CC_prep_2002, FL_prep_2003, TX_prep_1998, TS_prep_2008, AO_p
 
 # Plot it
 fig_1 <- ggplot(fig_1_data, aes(x = lon, y = lat)) +
-  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), 
+               fill = "grey50") +
   # geom_point(aes(colour = year, shape = impact), size = 5) +
   geom_raster(aes(fill = category)) +
   scale_fill_manual(values = MCS_colours) +
