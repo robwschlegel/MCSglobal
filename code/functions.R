@@ -1,4 +1,4 @@
-#code/functions.R
+# code/functions.R
 # This script houses functions and useful bits used by other scripts
 
 
