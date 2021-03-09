@@ -880,6 +880,27 @@ fig_8 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_histor
 ggsave(fig_8, filename = paste0("figures/fig_8.png"), height = 4.25, width = 12)
 ggsave(fig_8, filename = paste0("figures/fig_8.pdf"), height = 4.25, width = 12)
 
+# Summed up annual values for easier reading
+sum_all <- MCS_total_filter %>% 
+  group_by(t) %>% 
+  summarise_if(is.numeric, sum)
+
+# Summed up annual ice values for easier reading
+sum_ice <- MCS_total_ice %>% 
+  group_by(t) %>% 
+  summarise_if(is.numeric, sum)
+
+# Values minus ice
+sum_all$first_area_cum_prop - sum_ice$first_area_cum_prop
+sum_all$cat_area_cum_prop - sum_ice$cat_area_cum_prop
+
+# Linear models
+x <- 1:nrow(sum_all)
+y1 <- sum_all$first_area_cum_prop - sum_ice$first_area_cum_prop
+y2 <- c(sum_all$cat_area_cum_prop - sum_ice$cat_area_cum_prop)
+summary(lm(formula = y1 ~ x))
+summary(lm(formula = y2 ~ x))
+
 
 # Figure 9 ----------------------------------------------------------------
 
