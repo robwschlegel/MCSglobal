@@ -14,77 +14,42 @@ library(ggsci) # Scientific colour palettes
 
 # Figure showing where in the world noteworthy MCSs from the literature occurred
 
-# The California 2002, Florida 2003 & 2010, Taiwan 2008, North Atlantic 2013-2015, Australia 2017 and 1962-3 Europe?
-
-# California current
-CC_bound <- c(38, 48, -132, -124)
-CC_data <- load_MCS_ALL(CC_bound)
-CC_data_2002 <- extract_MCS_grid_year(CC_data, 2002)
-rm(CC_data); gc()
-
-# One of the most widely published MCS is that which occurred off Florida in 2003
-FL_bound <- c(26, 36, -84, -72)
-FL_data <- load_MCS_ALL(FL_bound)
-FL_data_2003 <- extract_MCS_grid_year(FL_data, 2003)
-FL_data_2010 <- extract_MCS_grid_year(FL_data, 2010)
-rm(FL_data); gc()
-
-# Texas is always getting pummeled
-TX_bound <- c(17, 31, -98, -81)
-TX_data <- load_MCS_ALL(TX_bound)
-TX_data_1998 <- extract_MCS_grid_year(TX_data, 1998)
-rm(TX_data); gc()
-
-# Taiwan Strait
-TS_bound <- c(18, 30, 112, 126)
-TS_data <- load_MCS_ALL(TS_bound)
-TS_data_2008 <- extract_MCS_grid_year(TS_data, 2008)
-rm(TS_data); gc()
-
-# Atlantic Ocean cold blob 2014 - 2016 under Greenland
-# NB: This one takes a while and a lot of RAM
-AO_bound <- c(43, 65, -50, -7)
-AO_data <- load_MCS_ALL(AO_bound)
-AO_data_2013_15 <- extract_MCS_grid_year(AO_data, 2013, 2)
-rm(AO_data); gc()
-
-# Australia southern reef
-OZ_bound <- c(-26, -22, 150, 155)
-OZ_data <- load_MCS_ALL(OZ_bound)
-OZ_data_2017 <- extract_MCS_grid_year(OZ_data, 2017)
-rm(OZ_data); gc()
-
 # Function that prepares category grid for plotting
-# intensity_choice = "cumulative"
+# intensity_choice = "max"
 # date_range <- c("2003-05-01", "2003-10-31")
-fig_1_prep_func <- function(MCS_data, date_range, intensity_choice = "max"){
+fig_1_prep_func <- function(MCS_data, date_range, intensity_choice = "cumulative", rgn){
   
   # Find the most intense point
   if(intensity_choice == "max"){
     centre_point <- MCS_data$event_data %>% 
       filter(date_start >= date_range[1],
              date_end <= date_range[2]) %>%
-      filter(intensity_max == min(intensity_max))
+      filter(intensity_max == min(intensity_max, na.rm = T))
   } else if(intensity_choice == "cumulative"){
     centre_point <- MCS_data$event_data %>% 
       filter(date_start >= date_range[1],
              date_end <= date_range[2]) %>%
-      filter(intensity_cumulative == min(intensity_cumulative))
+      filter(intensity_cumulative == min(intensity_cumulative, na.rm = T))
+  } else if(intensity_choice == "date_range"){
+    centre_point <- data.frame(date_start = date_range[1],
+                               date_end = date_range[2])
   }
   
   # Extract data based on dates of occurrence of MCS
-  res <- MCS_data$clim_data %>% 
-    filter(t >= centre_point$date_start,
-           t <= centre_point$date_end) %>% 
-    mutate(category = factor(category,
-                             levels = c("I Moderate", "II Strong",
-                                        "III Severe", "IV Extreme")),
-           cat_int = as.integer(category)) %>% 
-    group_by(lon, lat) %>% 
-    filter(cat_int == max(cat_int, na.rm = T)) %>% 
-    filter(intensity == min(intensity, na.rm = T)) %>% 
-    ungroup()
-    
+  suppressWarnings( # Don't need to know about pixels without MCS data
+    res <- MCS_data$clim_data %>% 
+      filter(t >= centre_point$date_start,
+             t <= centre_point$date_end) %>%
+      mutate(category = factor(category,
+                               levels = c("I Moderate", "II Strong",
+                                          "III Severe", "IV Extreme")),
+             cat_int = as.integer(category)) %>% 
+      group_by(lon, lat) %>% 
+      filter(cat_int == max(cat_int, na.rm = T)) %>% 
+      filter(intensity == min(intensity, na.rm = T)) %>% 
+      ungroup() %>% 
+      mutate(region = rgn)
+  )
 }
 
 # Test plot to check extracted data
@@ -93,10 +58,66 @@ fig_1_test_plot <- function(MCS_data){
     geom_raster(aes(fill = category)) +
     scale_fill_manual(values = MCS_colours)
 }
-fig_1_test_plot(res)
 
+# The California 2002, Florida 2003 & 2010, Taiwan 2008, North Atlantic 2013-2015, Australia 2017 and 1962-3 Europe?
+
+# California current
+CC_bound <- c(34, 48, -130, -124)
+CC_data <- load_MCS_ALL(CC_bound)
+CC_data_2002 <- extract_MCS_grid_year(CC_data, 2002)
+CC_prep_2002 <- fig_1_prep_func(CC_data_2002, c("2002-05-01", "2002-10-31"), "cumulative", "CC") %>% 
+  filter(lon >= -128, lat >= 36)
+fig_1_test_plot(CC_prep_2002)
+rm(CC_data); gc()
+
+# One of the most widely published MCS is that which occurred off Florida in 2003
+FL_bound <- c(24, 40, -84, -70)
+FL_data <- load_MCS_ALL(FL_bound)
+FL_data_2003 <- extract_MCS_grid_year(FL_data, 2003)
+FL_data_2010 <- extract_MCS_grid_year(FL_data, 2010)
+FL_prep_2003 <- fig_1_prep_func(FL_data_2003, c("2003-05-01", "2003-10-31"), "cumulative", "FL") %>% 
+  mutate(category2 = ifelse(lon >= -77.5 & lat <= 29.5, NA, category))
+FL_prep_2010 <- fig_1_prep_func(FL_data_2010, c("2010-09-01", "2011-01-31"), "date_range", "FL")
+fig_1_test_plot(FL_prep_2003)
+fig_1_test_plot(FL_prep_2010)
+rm(FL_data); gc()
+
+# Texas is always getting pummeled
+TX_bound <- c(17, 31, -98, -81)
+TX_data <- load_MCS_ALL(TX_bound)
+TX_data_1998 <- extract_MCS_grid_year(TX_data, 1998)
+TX_prep_1998 <- fig_1_prep_func(TX_data_1998, c("1998-02-01", "1998-10-31"), "cumulative", "TX")
+fig_1_test_plot(TX_prep_1998)
+rm(TX_data); gc()
+
+# Taiwan Strait
+TS_bound <- c(18, 30, 112, 126)
+TS_data <- load_MCS_ALL(TS_bound)
+TS_data_2008 <- extract_MCS_grid_year(TS_data, 2008)
+TS_prep_2008 <- fig_1_prep_func(TS_data_2008, c("2007-11-01", "2008-03-31"), "max", "TS")
+fig_1_test_plot(TS_prep_2008)
+rm(TS_data); gc()
+
+# Atlantic Ocean cold blob 2014 - 2016 under Greenland
+# NB: This one takes a while and a lot of RAM
+AO_bound <- c(43, 65, -50, -7)
+AO_data <- load_MCS_ALL(AO_bound)
+AO_data_2013_15 <- extract_MCS_grid_year(AO_data, 2014, 3)
+AO_prep_2013_15 <- fig_1_prep_func(AO_data_2013_15, c("2012-6-01", "2017-05-31"), "date_range", "AO")
+fig_1_test_plot(AO_prep_2013_15)
+rm(AO_data); gc()
+
+# Australia southern reef
+OZ_bound <- c(-42, -34, 144, 155)
+OZ_data <- load_MCS_ALL(OZ_bound)
+OZ_data_2017 <- extract_MCS_grid_year(OZ_data, 2017)
+OZ_prep_2017 <- fig_1_prep_func(OZ_data_2017, c("2017-02-01", "2017-06-30"), "date_range", "OZ") %>% 
+  filter(lat > -41, lon < 149)
+fig_1_test_plot(OZ_prep_2017)
+rm(OZ_data); gc()
 
 # Combine data
+fig_1_data <- rbind(CC_prep_2002, FL_prep_2003, TX_prep_1998, TS_prep_2008, AO_prep_2013_15, OZ_prep_2017)
 
 # Load icons for map
 
@@ -107,15 +128,17 @@ fig_1_test_plot(res)
 #                           impact = c("Fish kill", "Fish kill", "Fish kill", "Coral mortality", "Mass death"))
 
 # Plot it
-fig_1 <- ggplot(fig_1_table, aes(x = lon, y = lat)) +
+fig_1 <- ggplot(fig_1_data, aes(x = lon, y = lat)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-  geom_point(aes(colour = year, shape = impact), size = 5) +
+  # geom_point(aes(colour = year, shape = impact), size = 5) +
+  geom_raster(aes(fill = category)) +
+  scale_fill_manual(values = MCS_colours) +
   labs(x = NULL, y = NULL) +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
   theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top")
-# fig_1
+fig_1
 ggsave("figures/fig_1.png", fig_1, height = 4, width = 8)
 ggsave("figures/fig_1.pdf", fig_1, height = 4, width = 8)
 
@@ -582,7 +605,7 @@ fig_5_func <- function(var_name, y_title, y_val){
     mutate(p.value = case_when(p.value < 0.01 ~ "p < 0.01",
                                p.value >= 0.01 ~ paste0("p = ",round(p.value,2))),
            label = paste0("ANOVA: ",p.value))
-
+  
   # Plot the chosen variable
   MCS_annual_global_mean_long %>% 
     filter(name == var_name) %>% 
@@ -613,7 +636,7 @@ fig_5_func <- function(var_name, y_title, y_val){
           axis.text = element_text(size = 12),
           legend.title = element_text(size = 18),
           legend.text = element_text(size = 16))
-    # facet_wrap(~name, scales = "free_y")
+  # facet_wrap(~name, scales = "free_y")
 }
 
 # Create the panels

@@ -193,6 +193,7 @@ load_MCS_event_sub <- function(file_name, date_range,
   res <- left_join(res_event, res_cat,
                    by = c("lon", "lat", "duration", "event_no",
                           "date_peak" = "peak_date", "intensity_max" = "i_max"))
+  gc()
   return(res)
 }
 
@@ -215,6 +216,7 @@ load_MCS_clim_sub <- function(file_name, date_range,
            lat >= lat_range[1], lat <= lat_range[2])
   res <- left_join(res_clim, res_cat,
                    by = c("lon", "lat", "t", "event_no"))
+  gc()
   return(res)
 }
 
