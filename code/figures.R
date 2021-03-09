@@ -103,7 +103,7 @@ rm(TS_data); gc()
 AO_bound <- c(43, 65, -50, -7)
 AO_data <- load_MCS_ALL(AO_bound)
 AO_data_2013_15 <- extract_MCS_grid_year(AO_data, 2014, 3)
-AO_prep_2013_15 <- fig_1_prep_func(AO_data_2013_15, c("2012-6-01", "2017-05-31"), "date_range", "AO")
+AO_prep_2013_15 <- fig_1_prep_func(AO_data_2013_15, c("2012-6-01", "2017-05-31"), "cumulative", "AO")
 fig_1_test_plot(AO_prep_2013_15)
 rm(AO_data); gc()
 
@@ -789,7 +789,14 @@ MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
 
 # Chose category system
 MCS_total_filter <- filter(MCS_total, name == "category") %>% 
-  filter(first_area_cum > 0)
+  dplyr::select(-hemi) %>% 
+  group_by(t, name, category) %>% 
+  summarise_all(sum) %>% 
+  filter(first_n_cum > 0)
+
+# Get Ice only for overplotting
+MCS_total_ice <- filter(MCS_total, name == "category_ice") %>% 
+  filter(category == "V Ice")
 
 # Stacked barplot of global daily count of MHWs by category
 fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean)) +
@@ -813,16 +820,24 @@ fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean
 fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)) +
   geom_bar(aes(fill = category), stat = "identity", show.legend = T,
            position = position_stack(reverse = TRUE), width = 1) +
+  geom_bar_pattern(data = MCS_total_ice, stat = "identity", show.legend = F,
+                   aes(pattern_colour = hemi, colour = hemi), 
+                   pattern = "stripe", pattern_fill = NA, fill = NA, 
+                   pattern_density = 1, pattern_size = 1.5) +
   scale_fill_manual("Category", values = MCS_colours) +
+  scale_colour_manual(values = c("lightpink", "plum")) +
+  scale_pattern_colour_manual(values = c("lightpink", "plum")) +
   scale_y_continuous(limits = c(0, 1),
                      breaks = seq(0.2, 0.8, length.out = 4),
                      labels = paste0(seq(20, 80, by = 20), "%")) +
   scale_x_continuous(breaks = seq(1982, 2019, 5)) +
+  # guides(pattern_fill = F, pattern_colour = F, hemi = F) +
   labs(y = "Total ocean experienceing \nat least one MCS", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         axis.title = element_text(size = 14),
         axis.text = element_text(size = 12),
+        legend.position = "none",
         legend.title = element_text(size = 18),
         legend.text = element_text(size = 16))
 # fig_cum_historic
@@ -831,7 +846,13 @@ fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)
 fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)) +
   geom_bar(aes(fill = category), stat = "identity", show.legend = T,
            position = position_stack(reverse = TRUE), width = 1) +
+  geom_bar_pattern(data = MCS_total_ice, stat = "identity", show.legend = F,
+                   aes(pattern_colour = hemi, colour = hemi), 
+                   pattern = "stripe", pattern_fill = NA, fill = NA, 
+                   pattern_density = 1, pattern_size = 1.5) +
   scale_fill_manual("Category", values = MCS_colours) +
+  scale_colour_manual(values = c("lightpink", "plum")) +
+  scale_pattern_colour_manual(values = c("lightpink", "plum")) +
   scale_y_continuous(limits = c(0, 30),
                      breaks = seq(10, 20, length.out = 2)) +
   scale_x_continuous(breaks = seq(1982, 2019, 5)) +
@@ -840,6 +861,7 @@ fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop))
   theme(panel.border = element_rect(colour = "black", fill = NA),
         axis.title = element_text(size = 14),
         axis.text = element_text(size = 12),
+        legend.position = "none",
         legend.title = element_text(size = 18),
         legend.text = element_text(size = 16))
 # fig_prop_historic
