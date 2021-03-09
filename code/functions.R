@@ -176,45 +176,45 @@ MCS_cat_event <- function(df){
 # Subset event metric files
 load_MCS_event_sub <- function(file_name, date_range,
                                lon_range = NA, lat_range){
-  res <- readRDS(file_name) %>% 
+  res_event <- readRDS(file_name) %>% 
     dplyr::select(lon, lat, event) %>% 
     unnest(event) %>% 
     filter(row_number() %% 2 == 0) %>% 
     unnest(event) %>% 
     filter(date_start >= date_range[1], date_start <= date_range[2],
-           # lon >= lon_range[1], lon <= lon_range[2],
-           lat >= lat_range[1], lat <= lat_range[2]) #%>%
-  # select(lon, lat, t, temp)
-  return(res)
-}
-
-# Subset category files
-load_MCS_cat_sub <- function(file_name, date_range,
-                             lon_range = NA, lat_range){
-  res <- readRDS(file_name) %>% 
+           lat >= lat_range[1], lat <= lat_range[2])
+  res_cat <- readRDS(file_name) %>% 
     dplyr::select(lon, lat, cat) %>% 
     unnest(cat) %>% 
     filter(row_number() %% 2 == 0) %>% 
     unnest(cat) %>% 
     filter(peak_date >= date_range[1], peak_date <= date_range[2],
-           # lon >= lon_range[1], lon <= lon_range[2],
-           lat >= lat_range[1], lat <= lat_range[2]) #%>%
-  # select(lon, lat, t, temp)
+           lat >= lat_range[1], lat <= lat_range[2])
+  res <- left_join(res_event, res_cat,
+                   by = c("lon", "lat", "duration", "event_no",
+                          "date_peak" = "peak_date", "intensity_max" = "i_max"))
   return(res)
 }
 
 # Subset climatology files
 load_MCS_clim_sub <- function(file_name, date_range,
                               lon_range = NA, lat_range){
-  res <- readRDS(file_name) %>% 
+  res_clim <- readRDS(file_name) %>% 
     dplyr::select(lon, lat, event) %>% 
     unnest(event) %>% 
     filter(row_number() %% 2 == 1) %>% 
     unnest(event) %>% 
     filter(t >= date_range[1], t <= date_range[2],
-           # lon >= lon_range[1], lon <= lon_range[2],
-           lat >= lat_range[1], lat <= lat_range[2]) #%>%
-  # select(lon, lat, t, temp)
+           lat >= lat_range[1], lat <= lat_range[2])
+  res_cat <- readRDS(file_name) %>% 
+    dplyr::select(lon, lat, cat) %>% 
+    unnest(cat) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(cat) %>% 
+    filter(t >= date_range[1], t <= date_range[2],
+           lat >= lat_range[1], lat <= lat_range[2])
+  res <- left_join(res_clim, res_cat,
+                   by = c("lon", "lat", "t", "event_no"))
   return(res)
 }
 
@@ -226,13 +226,6 @@ load_MCS_ALL <- function(bbox){
                             date_range = c("1982-01-01", "2020-12-31"),
                             lat_range = c(bbox[1], bbox[2]))
   
-  # Load category data
-  cat_data <- plyr::ldply(MCS_lon_files[which(lon_OISST >= bbox[3] & lon_OISST <= bbox[4])], 
-                          .fun = load_MCS_cat_sub, .parallel = T, 
-                          date_range = c("1982-01-01", "2020-12-31"),
-                          # date_range = date_range,
-                          lat_range = c(bbox[1], bbox[2]))
-  
   # Load clim data
   clim_data <- plyr::ldply(MCS_lon_files[which(lon_OISST >= bbox[3] & lon_OISST <= bbox[4])], 
                            .fun = load_MCS_clim_sub, .parallel = T, 
@@ -242,10 +235,25 @@ load_MCS_ALL <- function(bbox){
   
   # Combine into list and exit
   list_data <- list(event_data = event_data,
-                    cat_data = cat_data,
                     clim_data = clim_data)
   gc()
   return(list_data)
+}
+
+extract_MCS_grid_year <- function(dat, year_choice, spread = 1){
+  # Subset clim data
+  dat_clim_sub <- dat$clim_data %>% 
+    filter(lubridate::year(t) >= year_choice-spread,
+           lubridate::year(t) <= year_choice+spread)
+  
+  # Subset event+cat data
+  dat_event_cat_sub <- dat$event_data %>% 
+    filter(lubridate::year(date_peak) >= year_choice-spread,
+           lubridate::year(date_peak) <= year_choice+spread)
+  
+  # Return
+  dat_res <- list(clim_data = dat_clim_sub,
+                  event_data = dat_event_cat_sub)
 }
 
 # Function that loads and merges sst/seas/thresh for a given lon_step
