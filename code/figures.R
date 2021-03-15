@@ -792,7 +792,8 @@ MCS_total_filter <- filter(MCS_total, name == "category") %>%
   dplyr::select(-hemi) %>% 
   group_by(t, name, category) %>% 
   summarise_all(sum) %>% 
-  filter(first_n_cum > 0)
+  filter(first_n_cum > 0) %>% 
+  ungroup()
 
 # Get Ice only for overplotting
 MCS_total_ice <- filter(MCS_total, name == "category_ice") %>% 
@@ -832,7 +833,7 @@ fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)
                      labels = paste0(seq(20, 80, by = 20), "%")) +
   scale_x_continuous(breaks = seq(1982, 2019, 5)) +
   # guides(pattern_fill = F, pattern_colour = F, hemi = F) +
-  labs(y = "Total ocean experienceing \nat least one MCS", x = NULL) +
+  labs(y = "Ocean surface experiencing \nat least one MCS", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         axis.title = element_text(size = 14),
@@ -853,10 +854,10 @@ fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop))
   scale_fill_manual("Category", values = MCS_colours) +
   scale_colour_manual(values = c("lightpink", "plum")) +
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
-  scale_y_continuous(limits = c(0, 30),
-                     breaks = seq(10, 20, length.out = 2)) +
+  scale_y_continuous(limits = c(0, 27),
+                     breaks = seq(5, 25, length.out = 5)) +
   scale_x_continuous(breaks = seq(1982, 2019, 5)) +
-  labs(y = "Total MCS days for ocean", x = NULL) +
+  labs(y = "Average MCS days for ocean", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         axis.title = element_text(size = 14),
@@ -880,26 +881,50 @@ fig_8 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_histor
 ggsave(fig_8, filename = paste0("figures/fig_8.png"), height = 4.25, width = 12)
 ggsave(fig_8, filename = paste0("figures/fig_8.pdf"), height = 4.25, width = 12)
 
-# Summed up annual values for easier reading
-sum_all <- MCS_total_filter %>% 
-  group_by(t) %>% 
-  summarise_if(is.numeric, sum)
-
 # Summed up annual ice values for easier reading
 sum_ice <- MCS_total_ice %>% 
-  group_by(t) %>% 
-  summarise_if(is.numeric, sum)
+  group_by(t, name, category) %>% 
+  summarise_if(is.numeric, sum) %>% 
+  ungroup()
 
-# Values minus ice
-sum_all$first_area_cum_prop - sum_ice$first_area_cum_prop
-sum_all$cat_area_cum_prop - sum_ice$cat_area_cum_prop
+# Summed up annual values for easier reading
+sum_all <- MCS_total_filter %>% 
+  group_by(t, name) %>% 
+  summarise_if(is.numeric, sum) %>%
+  ungroup() %>% 
+  mutate(first_area_cum_prop = first_area_cum_prop-sum_ice$first_area_cum_prop,
+         cat_area_cum_prop = cat_area_cum_prop - sum_ice$cat_area_cum_prop,
+         category = "All")
+
+# Values by category
+sum_moderate <- MCS_total_filter %>% 
+  filter(category == "I Moderate") %>% 
+  mutate(first_area_cum_prop = first_area_cum_prop-sum_ice$first_area_cum_prop,
+         cat_area_cum_prop = cat_area_cum_prop-sum_ice$cat_area_cum_prop)
+sum_cat <- MCS_total_filter %>% 
+  filter(category != "I Moderate") %>% 
+  rbind(sum_moderate) %>%
+  rbind(sum_all) %>% 
+  rbind(sum_ice) %>% 
+  arrange(t, category) %>% 
+  mutate(row_idx = 1:n())
 
 # Linear models
-x <- 1:nrow(sum_all)
-y1 <- sum_all$first_area_cum_prop - sum_ice$first_area_cum_prop
-y2 <- c(sum_all$cat_area_cum_prop - sum_ice$cat_area_cum_prop)
-summary(lm(formula = y1 ~ x))
-summary(lm(formula = y2 ~ x))
+sum_lm <- sum_cat %>% 
+  group_by(category) %>% 
+  nest() %>% 
+  mutate(
+    cover = map(data, ~ lm(first_area_cum_prop ~ row_idx, data = .x)),
+    days = map(data, ~ lm(cat_area_cum_prop ~ row_idx, data = .x)),
+    cover_tidy = map(cover, broom::tidy),
+    days_tidy = map(days, broom::tidy),
+    cover_glance = map(cover, broom::glance),
+    days_glance = map(days, broom::glance)
+  )
+
+sum_lm %>% 
+  unnest(days_glance)
+
 
 
 # Figure 9 ----------------------------------------------------------------
