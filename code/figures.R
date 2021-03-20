@@ -903,14 +903,23 @@ sum_moderate <- MCS_total_filter %>%
          cat_area_cum_prop = cat_area_cum_prop-sum_ice$cat_area_cum_prop)
 sum_cat <- MCS_total_filter %>% 
   filter(category != "I Moderate") %>% 
-  rbind(sum_moderate) %>%
+  rbind(sum_moderate) 
+sum_cat_noice <- sum_cat %>% 
+  group_by(t, name) %>% 
+  summarise_if(is.numeric, sum) %>%
+  ungroup() %>% 
+  mutate(category = "All_noice")
+sum_cat_all <- sum_cat %>%
+  rbind(sum_cat_noice) %>% 
   rbind(sum_all) %>% 
   rbind(sum_ice) %>% 
   arrange(t, category) %>% 
-  mutate(row_idx = 1:n())
+  group_by(category) %>% 
+  mutate(row_idx = 1:n()) %>% 
+  ungroup()
 
 # Linear models
-sum_lm <- sum_cat %>% 
+sum_lm <- sum_cat_all %>% 
   group_by(category) %>% 
   nest() %>% 
   mutate(
@@ -922,10 +931,24 @@ sum_lm <- sum_cat %>%
     days_glance = map(days, broom::glance)
   )
 
-sum_lm %>% 
-  unnest(days_glance)
+# Extract stats for MCS annual coverage
+lm_cover <- unnest(sum_lm, cover_tidy) %>% 
+  filter(term == "row_idx") %>% 
+  left_join(unnest(sum_lm, cover_glance), by = c("category")) %>% 
+  dplyr::select(category, estimate, p.value.y, adj.r.squared) %>% 
+  mutate(estimate = round(estimate, 4), p.value.y = round(p.value.y, 2), adj.r.squared = round(adj.r.squared, 2))
+
+# Extract stats for MCS days
+lm_days <- unnest(sum_lm, days_tidy) %>% 
+  filter(term == "row_idx") %>% 
+  left_join(unnest(sum_lm, days_glance), by = c("category")) %>% 
+  dplyr::select(category, estimate, p.value.y, adj.r.squared) %>% 
+  mutate(estimate = round(estimate, 4), p.value.y = round(p.value.y, 2), adj.r.squared = round(adj.r.squared, 2))
 
 
+# Display in console
+lm_cover
+lm_days
 
 # Figure 9 ----------------------------------------------------------------
 
