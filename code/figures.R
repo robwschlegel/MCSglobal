@@ -101,8 +101,6 @@ ggsave("figures/fig_1.pdf", fig_1, width = 8, height = 4)
 # Figure 2 ----------------------------------------------------------------
 
 # Function that finds the event of interest
-# intensity_choice = "max"
-# date_range <- c("2003-05-01", "2003-10-31")
 main_event <- function(MCS_data, date_range, intensity_choice = "cumulative"){
   
   # Find the most intense point
@@ -141,25 +139,24 @@ FL_event_2003 <- main_event(FL_data, c("2003-05-01", "2003-10-31"), "max")
 fig_2_test_plot(FL_data, FL_event_2003)
 
 # Taiwan Strait
-TS_bound <- c(18, 30, 112, 126)
+TS_bound <- c(20, 28, 115, 124)
 TS_data <- load_MCS_ALL(TS_bound); gc()
 TS_event_2008 <- main_event(TS_data, c("2007-11-01", "2008-03-31"), "max")
 fig_2_test_plot(TS_data, TS_event_2008)
 
 # Atlantic Ocean cold blob 2014 - 2016 under Greenland
 # NB: This one takes a while and a lot of RAM
-AO_bound <- c(43, 65, -50, -7)
+AO_bound <- c(40, 55, -45, -20)
 AO_data <- load_MCS_ALL(AO_bound); gc()
 AO_event_2013_15 <- main_event(AO_data, c("2012-6-01", "2017-05-31"), "cumulative")
+fig_2_test_plot(AO_data, AO_event_2013_15)
 
 # Map panel for figure 2
-# MCS_data <- FL_data
-# event_sub <- FL_event_2003
-fig_2_panel_1 <- function(MCS_data, event_sub){
+fig_2_panel_1 <- function(MCS_data, event_sub, lon_breaks, lon_label, lat_breaks, lat_label){
   mf <- MCS_data$clim_data %>% 
     filter(t == event_sub$date_peak) %>%
     mutate(anom = temp - seas,
-           anom_round = plyr::round_any(anom, 2),
+           anom_round = plyr::round_any(anom, 1),
            anom_cut = cut(anom, breaks = seq(-8, 2, 2))) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = anom_round)) +
@@ -167,20 +164,22 @@ fig_2_panel_1 <- function(MCS_data, event_sub){
     geom_label(aes(x = min(lon), y = max(lat), label = event_sub$date_peak), hjust = 0, vjust = 1, size = 6) +
     geom_point(data = event_sub, aes(x = lon, y = lat), shape = 21, fill = "yellow", size = 3) +
     coord_quickmap(expand = F, xlim = range(MCS_data$clim_data$lon), ylim = range(MCS_data$clim_data$lat)) +
-    # scale_fill_gradient2(low = "blue", high = "red") +
-    scale_fill_gradientn(colours = c(RColorBrewer::brewer.pal(9, "Blues")[c(9,8,7,6)],
-                                     "white", RColorBrewer::brewer.pal(9, "Reds")[c(6)]),
+    scale_x_continuous(breaks = lon_breaks, labels = paste0(abs(lon_breaks),lon_label)) +
+    scale_y_continuous(breaks = lat_breaks, labels = paste0(abs(lat_breaks),lat_label)) +
+    scale_fill_gradientn(colours = c(RColorBrewer::brewer.pal(9, "Blues")[c(8,7,6,5,4,3,2,1)],
+                                     "white", RColorBrewer::brewer.pal(9, "Reds")[c(1, 2)]),
                          limits = c(-8, 2),
-                         breaks = c(-8, -6, -4, -2, 0, 2), 
+                         breaks = seq(-8, 2, 1), 
                          guide = "legend", na.value = NA) +
+    guides(fill = guide_legend(nrow = 1, byrow = TRUE, label.position = "bottom")) +
     labs(x = NULL, y = NULL, fill = "SSTa (°C)") +
     theme(panel.border = element_rect(colour = "black", fill = NA))
   # mf
 }
-panel_1_FL <- fig_2_panel_1(FL_data, FL_event_2003)
-panel_1_TS <- fig_2_panel_1(TS_data, TS_event_2008)
-panel_1_AO <- fig_2_panel_1(AO_data, AO_event_2013_15)
-panel_1 <- ggpubr::ggarrange(panel_1_FL, panel_1_TS, panel_1_AO, align = "hv", 
+panel_1_FL <- fig_2_panel_1(FL_data, FL_event_2003, seq(-82, -76, 2), "°W", seq(28, 32, 2), "°N")
+panel_1_TS <- fig_2_panel_1(TS_data, TS_event_2008, seq(117, 123, 2), "°E", seq(22, 26, 2), "°N")
+panel_1_AO <- fig_2_panel_1(AO_data, AO_event_2013_15, seq(-40, -25, 5), "°W", seq(43, 53, 5), "°N")
+panel_1 <- ggpubr::ggarrange(panel_1_FL, panel_1_TS, panel_1_AO, align = "hv", labels = c("A)", "B)", "C)"),
                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
 # panel_1
 
@@ -224,167 +223,89 @@ panel_2 <- ggpubr::ggarrange(panel_2_FL, panel_2_TS, panel_2_AO, align = "hv",
                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
 # panel_2
 
-# testers...
-# date_range <- c("2014-01-01", "2016-12-31")
-# intensity_choice <- "cumulative"
-Hobday_Fig_3_MCS <- function(MCS_data, date_range, intensity_choice = "max", line_legend = "none"){
-  
-  # Find the most intense point
-  if(intensity_choice == "max"){
-    centre_point <- MCS_data$clim_data %>% 
-      mutate(anom = temp - seas) %>% 
-      filter(t >= date_range[1],
-             t <= date_range[2]) %>% 
-      filter(anom == min(anom))
-    # centre_date <- centre_point$t
-  } else if(intensity_choice == "cumulative"){
-    centre_point <- MCS_data$event_data %>% 
-      filter(date_start >= date_range[1],
-             date_end <= date_range[2]) %>% 
-      filter(intensity_cumulative == min(intensity_cumulative))
-    # centre_date <- centre_point$date_peak
-  }
-  
-  # Find the date range of the event
-  centre_dates <- MCS_data$event_data %>% 
-    filter(lon == centre_point$lon[1],
-           lat == centre_point$lat[1],
-           event_no == centre_point$event_no[1])
-  
-  # Event name
-  centre_name <- paste0(lubridate::year(centre_dates$date_peak), " event")
-  
-  # Extract the top event rows
-  mcs_top <- MCS_data$clim_data %>% 
-    filter(lon == centre_point$lon[1],
-           lat == centre_point$lat[1],
-           t >= centre_dates$date_start[1]-1,
-           t <= centre_dates$date_end[1]+1)
-  
-  # Map figure
-  mf <- MCS_data$clim_data %>% 
-    filter(t == centre_dates$date_peak) %>% 
-    mutate(anom = temp - seas) %>% 
-    ggplot(aes(x = lon, y = lat)) +
-    geom_tile(aes(fill = anom)) +
-    geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-    geom_label(aes(x = min(lon), y = max(lat), label = centre_dates$date_peak), hjust = 0, vjust = 1, size = 6) +
-    geom_point(data = centre_point, aes(x = lon, y = lat), shape = 21, fill = "yellow", size = 3) +
-    coord_quickmap(expand = F, xlim = range(MCS_data$clim_data$lon), ylim = range(MCS_data$clim_data$lat)) +
-    scale_fill_gradient2(low = "blue", high = "red") +
-    labs(x = NULL, y = NULL, fill = "SSTa (°C)") +
-    theme(panel.border = element_rect(colour = "black", fill = NA))
-  # mf
-  
-  # Event line figure
-  el <- MCS_data$clim_data %>% 
-    filter(lon == centre_point$lon[1],
-           lat == centre_point$lat[1],
-           t >= centre_dates$date_start-30,
-           t <= centre_dates$date_end+30) %>% 
-    mutate(diff = thresh - seas,
-           thresh_2x = thresh + diff,
-           thresh_3x = thresh_2x + diff,
-           thresh_4x = thresh_3x + diff) %>% 
-    ggplot(aes(x = t)) +
-    geom_flame(aes(y = thresh, y2 = temp, fill = "Moderate"), n = 5, n_gap = 2) +
-    geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
-    geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
-    geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
-    geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
-    geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
-    geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
-    geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
-    geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
-    geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
-    scale_colour_manual(name = "Line colours", values = lineCol,
-                        breaks = c("Temperature", "Climatology", "Threshold",
-                                   "2x Threshold", "3x Threshold", "4x Threshold")) +
-    scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
-    scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
-    guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
-                                                     size = c(1, 1, 1, 1, 1, 1)))) +
-    labs(y = expression(paste("Temperature (°C)")), x = NULL) +
-    theme(panel.border = element_rect(colour = "black", fill = NA),
-          legend.position = line_legend)
-  # el
-  
-  # Lolliplot figures
-  ld <- MCS_data$event_data %>% 
-    filter(lon == centre_point$lon[1],
-           lat == centre_point$lat[1]) %>% 
+# Lolliplots of duration
+fig_2_panel_3 <- function(MCS_data, event_sub){
+  pixel_sub <- MCS_data$event_data %>% 
+    filter(lon == event_sub$lon[1],
+           lat == event_sub$lat[1]) 
+  ld <- pixel_sub %>% 
     ggplot(aes(x = date_peak, y = duration)) +
     geom_lolli(colour = "steelblue3") +
-    geom_lolli(data = centre_dates, colour = "navy") +
+    geom_lolli(data = event_sub, colour = "navy") +
+    scale_y_continuous(limits = c(0, max(pixel_sub$duration)*1.1), expand = c(0,0)) +
     labs(x = NULL, y = "Duration (days)", colour = "Events") +
     theme(axis.text.x = element_blank(),
           panel.border = element_rect(colour = "black", fill = NA))
   # ld
-  lim <- MCS_data$event_data %>% 
-    filter(lon == centre_point$lon[1],
-           lat == centre_point$lat[1]) %>% 
+}
+panel_3_FL <- fig_2_panel_3(FL_data, FL_event_2003)
+panel_3_TS <- fig_2_panel_3(TS_data, TS_event_2008)
+panel_3_AO <- fig_2_panel_3(AO_data, AO_event_2013_15)
+# panel_3 <- ggpubr::ggarrange(panel_3_FL, panel_3_TS, panel_3_AO, align = "hv", 
+#                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
+# panel_3
+
+# Lolliplots of max intensity
+fig_2_panel_4 <- function(MCS_data, event_sub){
+  pixel_sub <- MCS_data$event_data %>% 
+    filter(lon == event_sub$lon[1],
+           lat == event_sub$lat[1]) 
+  lim <- pixel_sub %>% 
+    filter(lon == event_sub$lon[1],
+           lat == event_sub$lat[1]) %>% 
     ggplot(aes(x = date_peak, y = intensity_max)) +
     geom_lolli(colour = "steelblue3") +
-    geom_lolli(data = centre_dates, colour = "navy") +
+    geom_lolli(data = event_sub, colour = "navy") +
+    scale_y_continuous(limits = c(min(pixel_sub$intensity_max)*1.1, 0), expand = c(0,0)) +
     labs(x = NULL, y = "Maximum Intensity (°C)", colour = "Events") +
     theme(axis.text.x = element_blank(),
           panel.border = element_rect(colour = "black", fill = NA))
   # lim
-  lic <- MCS_data$event_data %>% 
-    filter(lon == centre_point$lon[1],
-           lat == centre_point$lat[1]) %>% 
+}
+panel_4_FL <- fig_2_panel_4(FL_data, FL_event_2003)
+panel_4_TS <- fig_2_panel_4(TS_data, TS_event_2008)
+panel_4_AO <- fig_2_panel_4(AO_data, AO_event_2013_15)
+# panel_4 <- ggpubr::ggarrange(panel_4_FL, panel_4_TS, panel_4_AO, align = "hv", 
+#                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
+# panel_4
+
+# Lolliplots of max intensity
+fig_2_panel_5 <- function(MCS_data, event_sub){
+  pixel_sub <- MCS_data$event_data %>% 
+    filter(lon == event_sub$lon[1],
+           lat == event_sub$lat[1]) 
+  lic <- pixel_sub %>% 
+    filter(lon == event_sub$lon[1],
+           lat == event_sub$lat[1]) %>% 
     ggplot(aes(x = date_peak, y = intensity_cumulative)) +
     geom_lolli(colour = "steelblue3") +
-    geom_lolli(data = centre_dates, colour = "navy") +
-    labs(x = "Peak date", y = "Cumulative Intensity (°C)", colour = "Events") +
+    geom_lolli(data = event_sub, colour = "navy") +
+    scale_y_continuous(limits = c(min(pixel_sub$intensity_cumulative)*1.1, 0), expand = c(0,0)) +
+    labs(x = "Peak date", y = "Cum. Intensity (°C)", colour = "Events") +
     theme(panel.border = element_rect(colour = "black", fill = NA))
   # lic
-  
-  # Combine and save
-  full_fig <- ggpubr::ggarrange(mf, el, ld, lim, lic, ncol = 1, nrow = 5, align = "h", 
-                        heights = c(1.2, 0.7, 0.5, 0.5, 0.5))
-  return(full_fig)
 }
+panel_5_FL <- fig_2_panel_5(FL_data, FL_event_2003)
+panel_5_TS <- fig_2_panel_5(TS_data, TS_event_2008)
+panel_5_AO <- fig_2_panel_5(AO_data, AO_event_2013_15)
+# panel_5 <- ggpubr::ggarrange(panel_5_FL, panel_5_TS, panel_5_AO, align = "hv", 
+#                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
+# panel_5
 
-# The 2003 Florida summer event
-FL_2003_summer <- Hobday_Fig_3_MCS(FL_data, c("2003-07-01", "2003-7-31"))
-# ggsave("output/FL_2003_summer.png", FL_2003_summer, height = 14, width = 5)
-
-# The 2002 winter event
-# FL_2002_winter <- Hobday_Fig_3_MCS(FL_data, c("2002-09-01", "2003-01-31"))
-# ggsave("output/FL_2002_winter.png", FL_2002_winter, height = 14, width = 5)
-
-# The biggest event
-# FL_max <- Hobday_Fig_3_MCS(FL_data, c("1982-01-01", "2020-12-31"))
-# ggsave("output/FL_max.png", FL_max, height = 14, width = 5)
-
-# Combine all three
-# FL_trio <- ggarrange(FL_2003_summer, FL_2002_winter, FL_max, ncol = 3, nrow = 1)
-# ggsave("output/FL_trio.png", FL_trio, height = 14, width = 15)
-
-# Taiwan Strait
-TS_coast <- Hobday_Fig_3_MCS(TS_data, c("2007-01-01", "2008-12-31"), intensity_choice = "max")
-# ggsave("output/TS_coast.png", TS_coast, height = 14, width = 5)
-
-# Atlantic Ocean cold blob of 2014 - 2016
-AO_blob <- Hobday_Fig_3_MCS(AO_data, c("2014-01-01", "2016-12-31"), intensity_choice = "cumulative", line_legend = "right")
-# ggsave("output/AO_blob.png", AO_blob, height = 14, width = 5)
-
-# Australia event
-# OZ_reef <- Hobday_Fig_3_MCS(OZ_data, c("2003-01-01", "2003-12-31"), intensity_choice = "cumulative")
-# ggsave("output/OZ_reef.png", OZ_reef, height = 14, width = 5)
-
-# California current
-# CC_coast <- Hobday_Fig_3_MCS(CC_data, c("2003-01-01", "2003-12-31"), intensity_choice = "max")
-# ggsave("output/CC_coast.png", CC_coast, height = 14, width = 5)
+panel_lollis <- ggpubr::ggarrange(panel_3_FL, panel_3_TS, panel_3_AO,
+                                  panel_4_FL, panel_4_TS, panel_4_AO,
+                                  panel_5_FL, panel_5_TS, panel_5_AO, 
+                                  align = "hv", ncol = 3, nrow = 3)
 
 # Combine the three notorious MCS multi-panel figures
-fig_2 <- ggpubr::ggarrange(FL_2003_summer, TS_coast, AO_blob, common.legend = T, ncol = 3, nrow = 1, labels = c("A)", "B)", "C)"))
+fig_2 <- ggpubr::ggarrange(panel_1, panel_2, panel_lollis, heights = c(1.2, 0.7, 1.5),
+                           ncol = 1, nrow = 3, align = "hv")
 ggsave("figures/fig_2.png", fig_2, height = 14, width = 15)
 ggsave("figures/fig_2.pdf", fig_2, height = 14, width = 15)
+rm(FL_data, TS_data, AO_data); gc()
 
 
-# Figure 4 ----------------------------------------------------------------
+# Figure 3 ----------------------------------------------------------------
 # Maps of the mean metrics
 
 # Load all results into one brick
