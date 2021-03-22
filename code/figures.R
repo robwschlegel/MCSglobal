@@ -19,7 +19,7 @@ library(ggsci) # Scientific colour palettes
 
 # Find a pixel that naturally experienced a Cat 4 event
 AC_bound <- c(-35, 4-5, 20, 35)
-AC_data <- load_MCS_ALL(AC_bound)
+AC_data <- load_MCS_ALL(AC_bound); gc()
 
 # Manually look through the events to find a good Cat 4
 AC_data_cat <- AC_data$cat_data
@@ -48,18 +48,18 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
   geom_ribbon_pattern(data = AC_data_clim_sub_sub, aes(ymin = seas, ymax = temp), 
                       pattern_fill = "steelblue1",
                       pattern = 'stripe', fill = NA, colour  = 'black', alpha = 0.3) +
-  geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
-  geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
-  geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
-  geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
-  geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
-  geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+  geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.7, linetype = "dashed") +
+  geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.7, linetype = "dotdash") +
+  geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.7, linetype = "dotted") +
+  geom_line(aes(y = seas, col = "Climatology"), size = 1.0) +
+  geom_line(aes(y = thresh, col = "Threshold"), size = 1.0) +
+  geom_line(aes(y = temp, col = "Temperature"), size = 0.7) +
   # Cumulative intensity label
-  geom_curve(colour = "steelblue1",
-             aes(x = as.Date("2018-02-22"), xend = as.Date("2018-02-10"),
-                 y = 25.8013, yend = 19.39), curvature = -0.4) +
+  # geom_curve(colour = "steelblue1",
+  #            aes(x = as.Date("2018-02-22"), xend = as.Date("2018-02-10"),
+  #                y = 25.8013, yend = 19.39), curvature = -0.4) +
   geom_label(aes(label = "Cum. Intensity = -70.04°CxDays", x = as.Date("2018-02-26"), y = 22.0),
-             colour = "steelblue1", label.size = 3) +
+             colour = "steelblue1", label.size = 1) +
   geom_label(aes(label = "Cum. Intensity = -70.04°C days", x = as.Date("2018-02-26"), y = 22.0),
              colour = "black", label.size = 0) +
   # Max intensity label
@@ -67,22 +67,22 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
                aes(x = as.Date("2018-02-10"), xend = as.Date("2018-02-10"),
                    y = 25.6323, yend = 19.0)) +
   geom_label(aes(label = "Max. Intensity = -6.24°C", x = as.Date("2018-02-10"), y = 18.8),
-             colour = "midnightblue", label.size = 3) +
+             colour = "midnightblue", label.size = 1) +
   geom_label(aes(label = "Max. Intensity = -6.24°C", x = as.Date("2018-02-10"), y = 18.8),
              colour = "black", label.size = 0) +
   # Duration label
   geom_segment(colour = "slateblue1",
                aes(x = as.Date("2018-01-29"), xend = as.Date("2018-01-29"),
-                   y = 24.1951, yend = 26.0)) +
+                   y = 24.1951, yend = 26.5)) +
   geom_segment(colour = "slateblue1",
                aes(x = as.Date("2018-02-22"), xend = as.Date("2018-02-22"),
-                   y = 24.6653, yend = 26.0)) +
+                   y = 24.6653, yend = 26.5)) +
   geom_segment(colour = "slateblue1",
                aes(x = as.Date("2018-01-29"), xend = as.Date("2018-02-22"),
-                   y = 26.0, yend = 26.0)) +
-  geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.0),
-             colour = "slateblue1", label.size = 3) +
-  geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.0),
+                   y = 26.5, yend = 26.5)) +
+  geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.5),
+             colour = "slateblue1", label.size = 1) +
+  geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.5),
              colour = "black", label.size = 0) +
   # Other aesthetics
   scale_colour_manual(name = "Line colours", values = lineCol,
@@ -98,7 +98,7 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
                                                    size = c(1, 1, 1, 1, 1, 1)))) +
   labs(y = "Temperature (°C)", x = NULL) +
   theme(panel.border = element_rect(colour = "black", fill = NA))
-# fig_1
+fig_1
 ggsave("figures/fig_1.png", fig_1, width = 8, height = 4)
 ggsave("figures/fig_1.pdf", fig_1, width = 8, height = 4)
 
@@ -677,7 +677,7 @@ ggsave("figures/fig_7.pdf", fig_7, height = 3, width = 11)
 # Figure 7 ----------------------------------------------------------------
 # Global annual summaries of MCSs
 
-# TO DO: Add bars with black border showing the Southern Ocean contribution
+
 # improve x axis labels
 # Make ice bars smaller
 # Shrink y axis
@@ -702,11 +702,18 @@ MCS_total_ice <- filter(MCS_total, name == "category_ice") %>%
 fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean)) +
   geom_bar(aes(fill = category), stat = "identity", show.legend = T,
            position = position_stack(reverse = TRUE), width = 1) +
+  geom_bar_pattern(data = MCS_total_ice, stat = "identity", show.legend = F,
+                   aes(pattern_colour = hemi, colour = hemi), 
+                   pattern = "stripe", pattern_fill = NA, fill = NA, 
+                   pattern_density = 1, pattern_size = 0.6) +
   scale_fill_manual("Category", values = MCS_colours) +
-  scale_y_continuous(limits = c(0, 1),
-                     breaks = seq(0.2, 0.8, length.out = 4),
-                     labels = paste0(seq(20, 80, by = 20), "%")) +
-  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
+  scale_colour_manual(values = c("lightpink", "plum")) +
+  scale_pattern_colour_manual(values = c("lightpink", "plum")) +
+  scale_y_continuous(limits = c(0, 0.08),
+                     breaks = seq(0.02, 0.06, length.out = 3),
+                     labels = paste0(seq(2, 6, by = 2), "%")) +
+  scale_x_continuous(breaks = seq(1984, 2019, 7)) +
+  guides(pattern_colour = FALSE, colour = FALSE) +
   labs(y = "Average daily MCS \ncoverage for ocean", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
@@ -723,15 +730,14 @@ fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)
   geom_bar_pattern(data = MCS_total_ice, stat = "identity", show.legend = F,
                    aes(pattern_colour = hemi, colour = hemi), 
                    pattern = "stripe", pattern_fill = NA, fill = NA, 
-                   pattern_density = 1, pattern_size = 1.5) +
+                   pattern_density = 1, pattern_size = 0.6) +
   scale_fill_manual("Category", values = MCS_colours) +
   scale_colour_manual(values = c("lightpink", "plum")) +
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
-  scale_y_continuous(limits = c(0, 1),
-                     breaks = seq(0.2, 0.8, length.out = 4),
-                     labels = paste0(seq(20, 80, by = 20), "%")) +
-  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
-  # guides(pattern_fill = F, pattern_colour = F, hemi = F) +
+  scale_y_continuous(limits = c(0, 0.65),
+                     breaks = seq(0.15, 0.6, length.out = 4),
+                     labels = paste0(seq(15, 60, by = 15), "%")) +
+  scale_x_continuous(breaks = seq(1984, 2019, 7)) +
   labs(y = "Ocean surface experiencing \nat least one MCS", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
@@ -749,13 +755,13 @@ fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop))
   geom_bar_pattern(data = MCS_total_ice, stat = "identity", show.legend = F,
                    aes(pattern_colour = hemi, colour = hemi), 
                    pattern = "stripe", pattern_fill = NA, fill = NA, 
-                   pattern_density = 1, pattern_size = 1.5) +
+                   pattern_density = 1, pattern_size = 0.6) +
   scale_fill_manual("Category", values = MCS_colours) +
   scale_colour_manual(values = c("lightpink", "plum")) +
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
   scale_y_continuous(limits = c(0, 27),
                      breaks = seq(5, 25, length.out = 5)) +
-  scale_x_continuous(breaks = seq(1982, 2019, 5)) +
+  scale_x_continuous(breaks = seq(1984, 2019, 7)) +
   labs(y = "Average MCS days for ocean", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
@@ -774,11 +780,11 @@ fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
                     "\n",product_title,"; Climatogy period: 1982-2011")
 
 # Stick them together and save
-fig_8 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_historic,
+fig_7 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_historic,
                            ncol = 3, align = "hv", labels = c("A)", "B)", "C)"), hjust = -0.1,
                            font.label = list(size = 14), common.legend = T, legend = "bottom")
-ggsave(fig_8, filename = paste0("figures/fig_8.png"), height = 4.25, width = 12)
-ggsave(fig_8, filename = paste0("figures/fig_8.pdf"), height = 4.25, width = 12)
+ggsave(fig_7, filename = paste0("figures/fig_7.png"), height = 4.25, width = 12)
+ggsave(fig_7, filename = paste0("figures/fig_7.pdf"), height = 4.25, width = 12)
 
 # Summed up annual ice values for easier reading
 sum_ice <- MCS_total_ice %>% 
@@ -848,10 +854,6 @@ lm_days <- unnest(sum_lm, days_tidy) %>%
 # Display in console
 lm_cover
 lm_days
-
-# Figure 8 ----------------------------------------------------------------
-
-# Could be interesting to show a global time series of the difference between average MCS and MHW days over the whole ocean.
 
 
 # Figure S1 ---------------------------------------------------------------

@@ -48,7 +48,7 @@ BlueWater <- t(data.frame(xmlToList(xmlParse("metadata/BlueWater.xml"))$ColorMap
 
 # This is negotiable...
 # MCS_palette <- c(BlueSpectrum$hex[6], BlueSpectrum$hex[13], BlueSpectrum$hex[20], BlueSpectrum$hex[27])
-MCS_palette <- c(BlueWater$hex[10], BlueWater$hex[7], BlueWater$hex[4], BlueWater$hex[2])
+MCS_palette <- c(BlueWater$hex[11], BlueWater$hex[9], BlueWater$hex[6], BlueWater$hex[2])
 
 # Set line colours
 lineCol <- c(
@@ -72,10 +72,10 @@ fillCol <- c(
 
 # The MCS colour palette
 MCS_colours <- c(
-  "I Moderate" = "#A4D4E0",
-  "II Strong" = "#5B80A6",
-  "III Severe" = "#2A3C66",
-  "IV Extreme" = "#111433",
+  "I Moderate" = MCS_palette[1],
+  "II Strong" = MCS_palette[2],
+  "III Severe" = MCS_palette[3],
+  "IV Extreme" = MCS_palette[4],
   "V Ice" = "thistle1"
 )
 
