@@ -12,6 +12,11 @@ library(ggsci) # Scientific colour palettes
 
 # Figure 1 ----------------------------------------------------------------
 
+# Move duration label up
+# Remove cum. int. crescent line
+# Spread out colour palette to give better contrast four cat 4
+# Make clim lines bigger
+
 # Find a pixel that naturally experienced a Cat 4 event
 AC_bound <- c(-35, 4-5, 20, 35)
 AC_data <- load_MCS_ALL(AC_bound)
@@ -99,6 +104,9 @@ ggsave("figures/fig_1.pdf", fig_1, width = 8, height = 4)
 
 
 # Figure 2 ----------------------------------------------------------------
+
+# Expand AO region
+# Add a sentence about Penghu surface mismatch
 
 # Function that finds the event of interest
 main_event <- function(MCS_data, date_range, intensity_choice = "cumulative"){
@@ -422,7 +430,7 @@ ggsave("figures/fig_4.png", fig_4, height = 6, width = 11)
 ggsave("figures/fig_4.pdf", fig_4, height = 6, width = 11)
 
 
-# Figure 5 ----------------------------------------------------------------
+# Figure 4 ----------------------------------------------------------------
 # Grouped global trends in MCS metrics
 
 # Load annual data
@@ -537,7 +545,7 @@ ggsave("figures/fig_5.png", fig_5, height = 11, width = 7)
 ggsave("figures/fig_5.pdf", fig_5, height = 11, width = 7)
 
 
-# Figure 6 ----------------------------------------------------------------
+# Figure 5 ----------------------------------------------------------------
 # Maps of the trends in the metrics
 # NB: This requires functions from Figure 4 code section
 
@@ -554,8 +562,12 @@ ggsave("figures/fig_6.png", fig_6, height = 6, width = 11)
 ggsave("figures/fig_6.pdf", fig_6, height = 6, width = 11)
 
 
-# Figure 7 ----------------------------------------------------------------
+# Figure 6 ----------------------------------------------------------------
 # Comparison of SSTa skewness and MHW vs. MCS intensity
+
+
+# Make skewness colour much more clear. White for 0
+
 
 # Load the MCS vs. MHW results
 MHW_v_MCS <- readRDS("data/MHW_v_MCS.Rds")
@@ -662,10 +674,14 @@ ggsave("figures/fig_7.png", fig_7, height = 3, width = 11)
 ggsave("figures/fig_7.pdf", fig_7, height = 3, width = 11)
 
 
-# Figure 8 ----------------------------------------------------------------
+# Figure 7 ----------------------------------------------------------------
 # Global annual summaries of MCSs
 
 # TO DO: Add bars with black border showing the Southern Ocean contribution
+# improve x axis labels
+# Make ice bars smaller
+# Shrink y axis
+
 
 # Load data
 MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
@@ -833,7 +849,12 @@ lm_days <- unnest(sum_lm, days_tidy) %>%
 lm_cover
 lm_days
 
-# Figure 9 ----------------------------------------------------------------
+# Figure 8 ----------------------------------------------------------------
 
 # Could be interesting to show a global time series of the difference between average MCS and MHW days over the whole ocean.
 
+
+# Figure S1 ---------------------------------------------------------------
+
+# Where does the near ice category get flagged
+# A map of where the ice flagged MHWs are

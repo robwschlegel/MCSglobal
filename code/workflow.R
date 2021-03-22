@@ -17,6 +17,11 @@
 # 12: Global stats by ice area and hemisphere
 
 
+# Change colour bars to discrete steps
+# Change land to grey
+# Use blue and yellow for the contrasting changes in Metrics
+# Or light yellow to dark blue
+
 # 1: Setup ----------------------------------------------------------------
 
 # Libraries
