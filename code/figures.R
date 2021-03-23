@@ -55,17 +55,21 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
   geom_line(aes(y = thresh, col = "Threshold"), size = 1.0) +
   geom_line(aes(y = temp, col = "Temperature"), size = 0.7) +
   # Cumulative intensity label
-  geom_label(aes(label = "Cum. Intensity = -70.04°CxDays", x = as.Date("2018-02-26"), y = 22.0),
+  geom_label(aes(x = as.Date("2018-02-26"), y = 22.0),
+             label = expression(italic("i"[cum])*" = -70.04"*degree*"C days"),
              colour = "steelblue1", label.size = 2) +
-  geom_label(aes(label = "Cum. Intensity = -70.04°C days", x = as.Date("2018-02-26"), y = 22.0),
+  geom_label(aes(x = as.Date("2018-02-26"), y = 22.0),
+             label = expression(italic("i"[cum])*" = -70.04"*degree*"C days"),
              colour = "black", label.size = 0) +
   # Max intensity label
   geom_segment(colour = "midnightblue",
                aes(x = as.Date("2018-02-10"), xend = as.Date("2018-02-10"),
                    y = 25.6323, yend = 19.0)) +
-  geom_label(aes(label = "Max. Intensity = -6.24°C", x = as.Date("2018-02-10"), y = 18.8),
+  geom_label(aes(x = as.Date("2018-02-10"), y = 18.8), # label = "Max. Intensity = -6.24°C", ),
+             label = expression(italic("i"[max])*" = -6.24"*degree*"C"),
              colour = "midnightblue", label.size = 2) +
-  geom_label(aes(label = "Max. Intensity = -6.24°C", x = as.Date("2018-02-10"), y = 18.8),
+  geom_label(aes(x = as.Date("2018-02-10"), y = 18.8),
+             label = expression(italic("i"[max])*" = -6.24"*degree*"C"),
              colour = "black", label.size = 0) +
   # Duration label
   geom_segment(colour = "slateblue1",
@@ -77,9 +81,11 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
   geom_segment(colour = "slateblue1",
                aes(x = as.Date("2018-01-29"), xend = as.Date("2018-02-22"),
                    y = 26.5, yend = 26.5)) +
-  geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.5),
+  geom_label(aes(x = as.Date("2018-02-10"), y = 26.5),
+             label = expression(italic("D")*" = 25 days"),
              colour = "slateblue1", label.size = 2) +
-  geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.5),
+  geom_label(aes(x = as.Date("2018-02-10"), y = 26.5),
+             label = expression(italic("D")*" = 25 days"),
              colour = "black", label.size = 0) +
   # Other aesthetics
   scale_colour_manual(name = "Line colours", values = lineCol,
@@ -99,7 +105,7 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
         axis.text = element_text(size = 10),
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 12))
-# fig_1
+fig_1
 ggsave("figures/fig_1.png", fig_1, width = 8, height = 4)
 ggsave("figures/fig_1.pdf", fig_1, width = 8, height = 4)
 
@@ -281,7 +287,7 @@ fig_2_panel_3 <- function(MCS_pixel, event_sub, y_label){
           legend.text = element_text(size = 12))
   # ld
 }
-panel_3_FL <- fig_2_panel_3(FL_pixel, FL_event_2003, "Duration (days)")
+panel_3_FL <- fig_2_panel_3(FL_pixel, FL_event_2003, expression(italic("D")))
 panel_3_TS <- fig_2_panel_3(TS_pixel, TS_event_2008, NULL)
 panel_3_AO <- fig_2_panel_3(AO_pixel, AO_event_2013_16, NULL)
 # panel_3 <- ggpubr::ggarrange(panel_3_FL, panel_3_TS, panel_3_AO, align = "hv", 
@@ -302,6 +308,7 @@ fig_2_panel_4 <- function(MCS_pixel, event_sub, y_label){
     labs(x = NULL, y = y_label, colour = "Events") +
     theme(axis.text.x = element_blank(),
           axis.ticks.x = element_blank(),
+          axis.title.y = element_text(face = "italic"),
           panel.border = element_rect(colour = "black", fill = NA),
           axis.title = element_text(size = 14),
           axis.text = element_text(size = 12),
@@ -309,7 +316,7 @@ fig_2_panel_4 <- function(MCS_pixel, event_sub, y_label){
           legend.text = element_text(size = 12))
   # lim
 }
-panel_4_FL <- fig_2_panel_4(FL_pixel, FL_event_2003, "Max. intensity (°C)")
+panel_4_FL <- fig_2_panel_4(FL_pixel, FL_event_2003, expression(italic("i"[max])))
 panel_4_TS <- fig_2_panel_4(TS_pixel, TS_event_2008, NULL)
 panel_4_AO <- fig_2_panel_4(AO_pixel, AO_event_2013_16, NULL)
 # panel_4 <- ggpubr::ggarrange(panel_4_FL, panel_4_TS, panel_4_AO, align = "hv", 
@@ -335,7 +342,7 @@ fig_2_panel_5 <- function(MCS_pixel, event_sub, y_label){
           legend.text = element_text(size = 12))
   # lic
 }
-panel_5_FL <- fig_2_panel_5(FL_pixel, FL_event_2003, "Cum. int. (°C days)")
+panel_5_FL <- fig_2_panel_5(FL_pixel, FL_event_2003, expression(italic("i"[cum])))
 panel_5_TS <- fig_2_panel_5(TS_pixel, TS_event_2008, NULL)
 panel_5_AO <- fig_2_panel_5(AO_pixel, AO_event_2013_16, NULL)
 # panel_5 <- ggpubr::ggarrange(panel_5_FL, panel_5_TS, panel_5_AO, align = "hv", 
@@ -490,10 +497,10 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
 }
 
 # Create panels
-fig_3a <- fig_map_func("total_count", "Count (n)")
-fig_3b <- fig_map_func("dur_mean", "Duration (days)")
-fig_3c <- fig_map_func("i_max_mean", "Maximum intensity (°C)")
-fig_3d <- fig_map_func("i_cum_mean", "Cumulative intensity (°C days)")
+fig_3a <- fig_map_func("total_count", expression(italic("n")))
+fig_3b <- fig_map_func("dur_mean", expression(italic("D")))
+fig_3c <- fig_map_func("i_max_mean", expression(italic("i"[max])))
+fig_3d <- fig_map_func("i_cum_mean", expression(italic("i"[cum])))
 
 # Combine and save
 fig_3 <- ggpubr::ggarrange(fig_3a, fig_3b, fig_3c, fig_3d, ncol = 1, nrow = 4, 
@@ -609,11 +616,11 @@ fig_line_func <- function(var_name, y_title, y_val, y_expand){
 }
 
 # Create the panels
-fig_4a <- fig_line_func("count_annual", "Count (n)", c(4.2, -0.3), 0.1)
-fig_4b <- fig_line_func("duration", "Duration\n(days)", c(65, -14), 0.1)
-fig_4c <- fig_line_func("intensity_max", "Maximum\nintensity (°C)", c(0.1, -1.8), 0.1)
-fig_4d <- fig_line_func("intensity_cumulative", "Cumulative\nintensity (°C days)", c(7, -35), 0.12)
-fig_4e <- fig_line_func("temp_anom", "Temperature\nanomaly (°C)", c(0.5, -0.45), 0.07)
+fig_4a <- fig_line_func("count_annual", expression(italic("n")), c(4.2, -0.3), 0.1)
+fig_4b <- fig_line_func("duration", expression(italic("D")), c(65, -14), 0.1)
+fig_4c <- fig_line_func("intensity_max", expression(italic("i"[max])), c(0.1, -1.8), 0.1)
+fig_4d <- fig_line_func("intensity_cumulative", expression(italic("i"[cum])), c(7, -35), 0.12)
+fig_4e <- fig_line_func("temp_anom", "SSTa (°C)", c(0.5, -0.45), 0.07)
 
 # Combine and save
 fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, fig_4e, ncol = 1, nrow = 5, 
@@ -627,10 +634,10 @@ ggsave("figures/fig_4.pdf", fig_4, height = 11, width = 7)
 # NB: This requires functions from Figure 4 code section
 
 # Crate panels
-fig_5a <- fig_map_func("total_count", "Count (n)", mean_plot = F)
-fig_5b <- fig_map_func("dur_mean", "Duration (days)", mean_plot = F)
-fig_5c <- fig_map_func("i_max_mean", "Maximum intensity (°C)", mean_plot = F)
-fig_5d <- fig_map_func("i_cum_mean", "Cumulative intensity (°C days)", mean_plot = F)
+fig_5a <- fig_map_func("total_count", expression(italic("n")), mean_plot = F)
+fig_5b <- fig_map_func("dur_mean", expression(italic("D")), mean_plot = F)
+fig_5c <- fig_map_func("i_max_mean", expression(italic("i"[max])), mean_plot = F)
+fig_5d <- fig_map_func("i_cum_mean", expression(italic("i"[cum])), mean_plot = F)
 
 # Combine and save
 fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, ncol = 1, nrow = 4, 
@@ -672,7 +679,7 @@ fig_6a <- MHW_v_MCS_long %>%
                          breaks = c(q05, q50, q95), 
                          labels = c(paste0("  <",round(q05, 2)), round(q50, 2), paste0(round(q95, 2),">")),) +
     guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-    labs(x = NULL, y = NULL, fill =  "Max. intensity (°C)") +
+    labs(x = NULL, y = NULL, fill = expression("MCS"*italic(""[imax])*" + MHW"*italic(""[imax]))) +
     # theme_void() +
     theme(panel.border = element_rect(colour = "black", fill = NA),
           legend.position = "top",
@@ -709,7 +716,7 @@ fig_6b <- SSTa_stats %>%
   geom_raster(aes(fill = value)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
-  scale_fill_gradient2("Skewness",
+  scale_fill_gradient2("SSTa Skewness",
                        low = "blue", mid = "white", high = "red",
                        # low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2],
                        breaks = c(skew_quants$q05, skew_quants$q50, skew_quants$q95), 
@@ -718,14 +725,13 @@ fig_6b <- SSTa_stats %>%
                                   paste0(round(skew_quants$q95, 1),">"))) +
   guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
   labs(x = NULL, y = NULL) +
-  # theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top",
         legend.title = element_text(size = 14, vjust = 1),
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-# fig_6b
+fig_6b
 
 # Save
 fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 1, nrow = 2, labels = c("A)", "B)"))
@@ -830,11 +836,11 @@ fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop))
 # fig_prop_historic
 
 # Create the figure title
-product_title <- "NOAA OISST"
-min_year <- min(MCS_total_filter$t)
-max_year <- max(MCS_total_filter$t)
-fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
-                    "\n",product_title,"; Climatogy period: 1982-2011")
+# product_title <- "NOAA OISST"
+# min_year <- min(MCS_total_filter$t)
+# max_year <- max(MCS_total_filter$t)
+# fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
+#                     "\n",product_title,"; Climatogy period: 1982-2011")
 
 # Stick them together and save
 fig_7 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, #fig_prop_historic,
@@ -907,7 +913,6 @@ lm_days <- unnest(sum_lm, days_tidy) %>%
   dplyr::select(category, estimate, p.value.y, adj.r.squared) %>% 
   mutate(estimate = round(estimate, 4), p.value.y = round(p.value.y, 2), adj.r.squared = round(adj.r.squared, 2))
 
-
 # Display in console
 lm_cover
 lm_days
@@ -952,7 +957,7 @@ fig_S1 <- MCS_cat_count_proc %>%
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
   scale_fill_gradient(low = "white", high = "mediumaquamarine") +
   guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-  labs(x = NULL, y = NULL, fill =  "Proportion Ice MCS") +
+  labs(x = NULL, y = NULL, fill =  "Ice MCS Proportion ") +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top",
         legend.title = element_text(size = 14, vjust = 1),
