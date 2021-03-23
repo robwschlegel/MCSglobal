@@ -277,7 +277,7 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
       summarise(max_cat = max(as.integer(category)),
                 max_cat_correct = max(as.integer(category_correct)),
                 max_cat_ice = max(as.integer(category_ice))) %>% 
-      data.frame() %>% 
+      data.frame() %>%
       dplyr::select(-event_no) %>% 
       mutate(max_cat = factor(max_cat, levels = c(1:4),  labels = levels(MCS_cat$category)),
              max_cat_correct = factor(max_cat_correct, levels = c(1:4),  labels = levels(MCS_cat$category)),
@@ -354,7 +354,7 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
       right_join(MCS_cat_first, by = c("t", "name", "category", "hemi"))
     # ) # 20 second
     saveRDS(MCS_cat_daily, file = paste0("data/MCS_cat_daily_",chosen_year,".Rds"))
-    rm(full_grid, MCS_cat_first); gc()
+    rm(full_grid, MCS_cat, MCS_cat_first); gc()
   }
 
   # Chose the type of categories to display
@@ -455,7 +455,7 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
 }
 
 # Run ALL years
-registerDoParallel(cores = 40)
+registerDoParallel(cores = 30)
 plyr::l_ply(1982:2020, MCS_annual_state, .parallel = T, force_calc = T) # ~90 seconds for one
 
 
@@ -467,20 +467,23 @@ MCS_total_state <- function(){
   MCS_cat_daily_files <- dir("data", pattern = "MCS_cat_daily", full.names = T)
   MCS_cat_daily_files <- MCS_cat_daily_files[!grepl("total", MCS_cat_daily_files)]
   
+  # Load files
+  cat_daily_all <- map_dfr(MCS_cat_daily_files, readRDS)
+  
   # Create mean values of daily count
-  cat_daily_mean <- map_dfr(MCS_cat_daily_files, readRDS) %>%
+  cat_daily_mean <- cat_daily_all %>%
     # dplyr::select(-hemi) %>% 
     mutate(t = lubridate::year(t)) %>%
-    group_by(t, name, category) %>%
+    group_by(t, name, category, hemi) %>%
     # summarise_all(sum) %>% 
     # group_by(t, name, category) %>%
-    summarise(cat_area_prop_mean = mean(cat_area_prop, na.rm = T), .groups = "drop") %>%
+    summarise(cat_area_prop_mean = mean(cat_area_prop, na.rm = T), .groups = "drop")# %>%
     # mutate(cat_n_prop_daily_mean = round(cat_n/nrow(OISST_ocean_coords), 4)) %>%
     # na.omit() %>% 
-    data.frame()
+    # data.frame()
   
   # Extract only values from December 31st
-  cat_daily <- map_dfr(MCS_cat_daily_files, readRDS) %>%
+  cat_daily_total <- cat_daily_all %>%
     # dplyr::select(-hemi) %>% 
     # mutate(t = lubridate::year(t)) %>%
     # group_by(t, name, category) %>%
@@ -489,10 +492,10 @@ MCS_total_state <- function(){
     filter(lubridate::month(t) == 12, lubridate::day(t) == 31) %>%
     mutate(t = lubridate::year(t)) %>% #,
            # first_n_cum_prop = round(first_n_cum/nrow(OISST_ocean_coords), 4)) %>% 
-    left_join(cat_daily_mean, by = c("t", "name", "category"))
+    left_join(cat_daily_mean, by = c("t", "name", "category", "hemi"))
   
   # Save and exit
-  saveRDS(cat_daily, paste0("data/MCS_cat_daily_total.Rds"))
+  saveRDS(cat_daily_total, paste0("data/MCS_cat_daily_total.Rds"))
 }
 
 ## Run it

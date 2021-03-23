@@ -677,12 +677,6 @@ ggsave("figures/fig_7.pdf", fig_7, height = 3, width = 11)
 # Figure 7 ----------------------------------------------------------------
 # Global annual summaries of MCSs
 
-
-# improve x axis labels
-# Make ice bars smaller
-# Shrink y axis
-
-
 # Load data
 MCS_total <- readRDS("data/MCS_cat_daily_total.Rds")
 
