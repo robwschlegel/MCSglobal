@@ -108,7 +108,10 @@ ggsave("figures/fig_1.pdf", fig_1, width = 8, height = 4)
 # Expand AO region
 # Add a sentence about Penghu surface mismatch
 
-# Function that finds the event of interest
+# Function that prepares category grid for plotting
+# MCS_data <- FL_data
+# intensity_choice = "max"
+# date_range <- c("2003-05-01", "2003-10-31")
 main_event <- function(MCS_data, date_range, intensity_choice = "cumulative"){
   
   # Find the most intense point
@@ -122,35 +125,53 @@ main_event <- function(MCS_data, date_range, intensity_choice = "cumulative"){
       filter(date_start >= date_range[1],
              date_end <= date_range[2]) %>%
       filter(intensity_cumulative == min(intensity_cumulative, na.rm = T))
-  } #else if(intensity_choice == "date_range"){
-    # centre_point <- data.frame(date_start = date_range[1],
-                               # date_end = date_range[2])
-  # }
-  return(centre_point)
+  } else if(intensity_choice == "date_range"){
+    centre_point <- data.frame(date_start = date_range[1],
+                               date_end = date_range[2])
+  }
+  
+  # Extract data based on dates of occurrence of MCS
+  suppressWarnings( # Don't need to know about pixels without MCS data
+    res <- MCS_data$clim_data %>% 
+      filter(t >= centre_point$date_start,
+             t <= centre_point$date_end) %>%
+      mutate(category = factor(category,
+                               levels = c("I Moderate", "II Strong",
+                                          "III Severe", "IV Extreme")),
+             cat_int = as.integer(category)) %>% 
+      group_by(lon, lat) %>% 
+      filter(cat_int == max(cat_int, na.rm = T)) %>% 
+      filter(intensity == min(intensity, na.rm = T)) %>% 
+      ungroup() %>% 
+      mutate(lon_centre = centre_point$lon,
+             lat_centre = centre_point$lat,
+             event_no_centre = centre_point$event_no)
+  )
+  return(res)
 }
 
 # Test plot to check extracted data
-fig_2_test_plot <- function(MCS_data, event_sub){
-  MCS_data$clim_data %>% 
-    filter(t == event_sub$date_peak) %>% 
+fig_2_test_plot <- function(event_sub){
+  event_sub %>% 
+    # filter(t == event_sub$date_peak) %>% 
     na.omit() %>% 
     ggplot(aes(x = lon, y = lat)) +
-    geom_raster(aes(fill = intensity))
-    # geom_raster(aes(fill = category)) +
-    # scale_fill_manual(values = MCS_colours)
+    # geom_raster(aes(fill = intensity))
+    geom_raster(aes(fill = category)) +
+    scale_fill_manual(values = MCS_colours)
 }
 
 # One of the most widely published MCS is that which occurred off Florida in 2003
 FL_bound <- c(26, 34, -84, -74)
 FL_data <- load_MCS_ALL(FL_bound); gc()
 FL_event_2003 <- main_event(FL_data, c("2003-05-01", "2003-10-31"), "max")
-fig_2_test_plot(FL_data, FL_event_2003)
+fig_2_test_plot(FL_event_2003)
 
 # Taiwan Strait
 TS_bound <- c(20, 28, 115, 124)
 TS_data <- load_MCS_ALL(TS_bound); gc()
 TS_event_2008 <- main_event(TS_data, c("2007-11-01", "2008-03-31"), "max")
-fig_2_test_plot(TS_data, TS_event_2008)
+fig_2_test_plot(TS_event_2008)
 
 # Atlantic Ocean cold blob 2014 - 2016 under Greenland
 # NB: This one takes a while and a lot of RAM
@@ -160,31 +181,32 @@ AO_event_2013_15 <- main_event(AO_data, c("2012-6-01", "2017-05-31"), "cumulativ
 fig_2_test_plot(AO_data, AO_event_2013_15)
 
 # Map panel for figure 2
-fig_2_panel_1 <- function(MCS_data, event_sub, lon_breaks, lon_label, lat_breaks, lat_label){
-  mf <- MCS_data$clim_data %>% 
-    filter(t == event_sub$date_peak) %>%
-    mutate(anom = temp - seas,
-           anom_round = plyr::round_any(anom, 1),
-           anom_cut = cut(anom, breaks = seq(-8, 2, 2))) %>% 
+fig_2_panel_1 <- function(event_sub, lon_breaks, lon_label, lat_breaks, lat_label){
+  mf <- event_sub %>% 
+    # filter(t == event_sub$date_peak) %>%
+    # mutate(anom = temp - seas,
+           # anom_round = plyr::round_any(anom, 1),
+           # anom_cut = cut(anom, breaks = seq(-8, 2, 2))) %>% 
     ggplot(aes(x = lon, y = lat)) +
-    geom_tile(aes(fill = anom_round)) +
+    geom_tile(aes(fill = category)) +
     geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-    geom_label(aes(x = min(lon), y = max(lat), label = event_sub$date_peak), hjust = 0, vjust = 1, size = 6) +
-    geom_point(data = event_sub, aes(x = lon, y = lat), shape = 21, fill = "yellow", size = 3) +
-    coord_quickmap(expand = F, xlim = range(MCS_data$clim_data$lon), ylim = range(MCS_data$clim_data$lat)) +
+    # geom_label(aes(x = min(lon), y = max(lat), label = event_sub$date_peak), hjust = 0, vjust = 1, size = 6) +
+    geom_point(data = event_sub, aes(x = lon_centre, y = lat_centre), shape = 21, fill = "yellow", size = 3) +
+    coord_quickmap(expand = F, xlim = range(event_sub$lon), ylim = range(event_sub$lat)) +
     scale_x_continuous(breaks = lon_breaks, labels = paste0(abs(lon_breaks),lon_label)) +
     scale_y_continuous(breaks = lat_breaks, labels = paste0(abs(lat_breaks),lat_label)) +
-    scale_fill_gradientn(colours = c(RColorBrewer::brewer.pal(9, "Blues")[c(8,7,6,5,4,3,2,1)],
-                                     "white", RColorBrewer::brewer.pal(9, "Reds")[c(1, 2)]),
-                         limits = c(-8, 2),
-                         breaks = seq(-8, 2, 1),
-                         guide = "legend", na.value = NA) +
-    guides(fill = guide_legend(nrow = 1, byrow = TRUE, label.position = "bottom")) +
+    scale_fill_manual(values = MCS_colours) +
+    # scale_fill_gradientn(colours = c(RColorBrewer::brewer.pal(9, "Blues")[c(8,7,6,5,4,3,2,1)],
+    #                                  "white", RColorBrewer::brewer.pal(9, "Reds")[c(1, 2)]),
+    #                      limits = c(-8, 2),
+    #                      breaks = seq(-8, 2, 1),
+    #                      guide = "legend", na.value = NA) +
+    # guides(fill = guide_legend(nrow = 1, byrow = TRUE, label.position = "bottom")) +
     labs(x = NULL, y = NULL, fill = "SSTa (°C)") +
     theme(panel.border = element_rect(colour = "black", fill = NA))
   # mf
 }
-panel_1_FL <- fig_2_panel_1(FL_data, FL_event_2003, seq(-82, -76, 2), "°W", seq(28, 32, 2), "°N")
+panel_1_FL <- fig_2_panel_1(FL_event_2003, seq(-82, -76, 2), "°W", seq(28, 32, 2), "°N")
 panel_1_TS <- fig_2_panel_1(TS_data, TS_event_2008, seq(117, 123, 2), "°E", seq(22, 26, 2), "°N")
 panel_1_AO <- fig_2_panel_1(AO_data, AO_event_2013_15, seq(-40, -25, 5), "°W", seq(43, 53, 5), "°N")
 panel_1 <- ggpubr::ggarrange(panel_1_FL, panel_1_TS, panel_1_AO, align = "hv", labels = c("A)", "B)", "C)"),
