@@ -716,7 +716,7 @@ fig_6b <- SSTa_stats %>%
   geom_raster(aes(fill = value)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
-  scale_fill_gradient2("SSTa Skewness",
+  scale_fill_gradient2("SSTa skewness",
                        low = "blue", mid = "white", high = "red",
                        # low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2],
                        breaks = c(skew_quants$q05, skew_quants$q50, skew_quants$q95), 
