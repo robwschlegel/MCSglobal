@@ -55,9 +55,6 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
   geom_line(aes(y = thresh, col = "Threshold"), size = 1.0) +
   geom_line(aes(y = temp, col = "Temperature"), size = 0.7) +
   # Cumulative intensity label
-  # geom_curve(colour = "steelblue1",
-  #            aes(x = as.Date("2018-02-22"), xend = as.Date("2018-02-10"),
-  #                y = 25.8013, yend = 19.39), curvature = -0.4) +
   geom_label(aes(label = "Cum. Intensity = -70.04°CxDays", x = as.Date("2018-02-26"), y = 22.0),
              colour = "steelblue1", label.size = 2) +
   geom_label(aes(label = "Cum. Intensity = -70.04°C days", x = as.Date("2018-02-26"), y = 22.0),
@@ -97,15 +94,18 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
                                                                 "dashed", "dotdash", "dotted"),
                                                    size = c(1, 1, 1, 1, 1, 1)))) +
   labs(y = "Temperature (°C)", x = NULL) +
-  theme(panel.border = element_rect(colour = "black", fill = NA))
-fig_1
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12))
+# fig_1
 ggsave("figures/fig_1.png", fig_1, width = 8, height = 4)
 ggsave("figures/fig_1.pdf", fig_1, width = 8, height = 4)
 
 
 # Figure 2 ----------------------------------------------------------------
 
-# Expand AO region
 # Add a sentence about Penghu surface mismatch
 
 # Function that prepares category grid for plotting
@@ -145,7 +145,10 @@ main_event <- function(MCS_data, date_range, intensity_choice = "cumulative"){
       ungroup() %>% 
       mutate(lon_centre = centre_point$lon,
              lat_centre = centre_point$lat,
-             event_no_centre = centre_point$event_no)
+             event_no_centre = centre_point$event_no,
+             date_start = centre_point$date_start,
+             date_peak = centre_point$date_peak,
+             date_end = centre_point$date_end)
   )
   return(res)
 }
@@ -158,68 +161,68 @@ fig_2_test_plot <- function(event_sub){
     ggplot(aes(x = lon, y = lat)) +
     # geom_raster(aes(fill = intensity))
     geom_raster(aes(fill = category)) +
+    geom_point(aes(x = lon_centre, y = lat_centre), shape = 21, fill = "yellow", size = 3) +
     scale_fill_manual(values = MCS_colours)
 }
 
 # One of the most widely published MCS is that which occurred off Florida in 2003
 FL_bound <- c(26, 34, -84, -74)
-FL_data <- load_MCS_ALL(FL_bound); gc()
+FL_data <- load_MCS_ALL(FL_bound, c("2003-01-01", "2003-12-31")); gc()
 FL_event_2003 <- main_event(FL_data, c("2003-05-01", "2003-10-31"), "max")
 fig_2_test_plot(FL_event_2003)
+FL_pixel <- load_MCS_ALL(c(FL_event_2003$lat_centre[1], FL_event_2003$lat_centre[1],
+                           FL_event_2003$lon_centre[1], FL_event_2003$lon_centre[1]))
 
 # Taiwan Strait
 TS_bound <- c(20, 28, 115, 124)
-TS_data <- load_MCS_ALL(TS_bound); gc()
+TS_data <- load_MCS_ALL(TS_bound, c("2007-06-01", "2008-05-31")); gc()
 TS_event_2008 <- main_event(TS_data, c("2007-11-01", "2008-03-31"), "max")
 fig_2_test_plot(TS_event_2008)
+TS_pixel <- load_MCS_ALL(c(TS_event_2008$lat_centre[1], TS_event_2008$lat_centre[1],
+                           TS_event_2008$lon_centre[1], TS_event_2008$lon_centre[1]))
 
 # Atlantic Ocean cold blob 2014 - 2016 under Greenland
-# NB: This one takes a while and a lot of RAM
-AO_bound <- c(40, 55, -45, -20)
-AO_data <- load_MCS_ALL(AO_bound); gc()
-AO_event_2013_15 <- main_event(AO_data, c("2012-6-01", "2017-05-31"), "cumulative")
-fig_2_test_plot(AO_data, AO_event_2013_15)
+AO_bound <- c(40, 65, -40, -5)
+AO_data <- load_MCS_ALL(AO_bound, c("2012-07-01", "2017-06-30")); gc()
+AO_event_2013_16 <- main_event(AO_data, c("2013-01-01", "2016-12-31"), "cumulative")
+fig_2_test_plot(AO_event_2013_16)
+AO_pixel <- load_MCS_ALL(c(AO_event_2013_16$lat_centre[1], AO_event_2013_16$lat_centre[1],
+                           AO_event_2013_16$lon_centre[1], AO_event_2013_16$lon_centre[1]))
 
 # Map panel for figure 2
 fig_2_panel_1 <- function(event_sub, lon_breaks, lon_label, lat_breaks, lat_label){
   mf <- event_sub %>% 
-    # filter(t == event_sub$date_peak) %>%
-    # mutate(anom = temp - seas,
-           # anom_round = plyr::round_any(anom, 1),
-           # anom_cut = cut(anom, breaks = seq(-8, 2, 2))) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = category)) +
     geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
-    # geom_label(aes(x = min(lon), y = max(lat), label = event_sub$date_peak), hjust = 0, vjust = 1, size = 6) +
     geom_point(data = event_sub, aes(x = lon_centre, y = lat_centre), shape = 21, fill = "yellow", size = 3) +
     coord_quickmap(expand = F, xlim = range(event_sub$lon), ylim = range(event_sub$lat)) +
     scale_x_continuous(breaks = lon_breaks, labels = paste0(abs(lon_breaks),lon_label)) +
     scale_y_continuous(breaks = lat_breaks, labels = paste0(abs(lat_breaks),lat_label)) +
     scale_fill_manual(values = MCS_colours) +
-    # scale_fill_gradientn(colours = c(RColorBrewer::brewer.pal(9, "Blues")[c(8,7,6,5,4,3,2,1)],
-    #                                  "white", RColorBrewer::brewer.pal(9, "Reds")[c(1, 2)]),
-    #                      limits = c(-8, 2),
-    #                      breaks = seq(-8, 2, 1),
-    #                      guide = "legend", na.value = NA) +
     # guides(fill = guide_legend(nrow = 1, byrow = TRUE, label.position = "bottom")) +
-    labs(x = NULL, y = NULL, fill = "SSTa (°C)") +
-    theme(panel.border = element_rect(colour = "black", fill = NA))
+    labs(x = NULL, y = NULL, fill = "Category") +
+    theme(panel.border = element_rect(colour = "black", fill = NA),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12),
+          legend.title = element_text(size = 14),
+          legend.text = element_text(size = 12))
   # mf
 }
 panel_1_FL <- fig_2_panel_1(FL_event_2003, seq(-82, -76, 2), "°W", seq(28, 32, 2), "°N")
-panel_1_TS <- fig_2_panel_1(TS_data, TS_event_2008, seq(117, 123, 2), "°E", seq(22, 26, 2), "°N")
-panel_1_AO <- fig_2_panel_1(AO_data, AO_event_2013_15, seq(-40, -25, 5), "°W", seq(43, 53, 5), "°N")
+panel_1_TS <- fig_2_panel_1(TS_event_2008, seq(117, 123, 2), "°E", seq(22, 26, 2), "°N")
+panel_1_AO <- fig_2_panel_1(AO_event_2013_16, seq(-35, -15, 10), "°W", seq(45, 60, 5), "°N")
 panel_1 <- ggpubr::ggarrange(panel_1_FL, panel_1_TS, panel_1_AO, align = "hv", labels = c("A)", "B)", "C)"),
                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
 # panel_1
 
 # The line plot of the event
-fig_2_panel_2 <- function(MCS_data, event_sub){
+fig_2_panel_2 <- function(MCS_data, event_sub, y_label){
   el <- MCS_data$clim_data %>% 
-    filter(lon == event_sub$lon[1],
-           lat == event_sub$lat[1],
-           t >= event_sub$date_start-30,
-           t <= event_sub$date_end+30) %>% 
+    filter(lon == event_sub$lon_centre[1],
+           lat == event_sub$lat_centre[1],
+           t >= event_sub$date_start[1]-30,
+           t <= event_sub$date_end[1]+30) %>% 
     mutate(diff = thresh - seas,
            thresh_2x = thresh + diff,
            thresh_3x = thresh_2x + diff,
@@ -229,12 +232,12 @@ fig_2_panel_2 <- function(MCS_data, event_sub){
     geom_flame(aes(y = thresh_2x, y2 = temp, fill = "Strong")) +
     geom_flame(aes(y = thresh_3x, y2 = temp, fill = "Severe")) +
     geom_flame(aes(y = thresh_4x, y2 = temp, fill = "Extreme")) +
-    geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.2, linetype = "dashed") +
-    geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.2, linetype = "dotdash") +
-    geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.2, linetype = "dotted") +
-    geom_line(aes(y = seas, col = "Climatology"), size = 0.6) +
-    geom_line(aes(y = thresh, col = "Threshold"), size = 0.6) +
-    geom_line(aes(y = temp, col = "Temperature"), size = 0.4) +
+    geom_line(aes(y = thresh_2x, col = "2x Threshold"), size = 0.7, linetype = "dashed") +
+    geom_line(aes(y = thresh_3x, col = "3x Threshold"), size = 0.7, linetype = "dotdash") +
+    geom_line(aes(y = thresh_4x, col = "4x Threshold"), size = 0.7, linetype = "dotted") +
+    geom_line(aes(y = seas, col = "Climatology"), size = 0.9) +
+    geom_line(aes(y = thresh, col = "Threshold"), size = 0.9) +
+    geom_line(aes(y = temp, col = "Temperature"), size = 0.6) +
     scale_colour_manual(name = "Line colours", values = lineCol,
                         breaks = c("Temperature", "Climatology", "Threshold",
                                    "2x Threshold", "3x Threshold", "4x Threshold")) +
@@ -242,86 +245,104 @@ fig_2_panel_2 <- function(MCS_data, event_sub){
     scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
     guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
                                                      size = c(1, 1, 1, 1, 1, 1)))) +
-    labs(y = expression(paste("Temperature (°C)")), x = NULL) +
-    theme(panel.border = element_rect(colour = "black", fill = NA))
+    labs(y = y_label, x = NULL) +
+    theme(panel.border = element_rect(colour = "black", fill = NA),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12),
+          legend.title = element_text(size = 14),
+          legend.text = element_text(size = 12))
   # el
 }
-panel_2_FL <- fig_2_panel_2(FL_data, FL_event_2003)
-panel_2_TS <- fig_2_panel_2(TS_data, TS_event_2008)
-panel_2_AO <- fig_2_panel_2(AO_data, AO_event_2013_15)
+panel_2_FL <- fig_2_panel_2(FL_data, FL_event_2003, "Temp. (°C)")
+panel_2_TS <- fig_2_panel_2(TS_data, TS_event_2008, NULL)
+panel_2_AO <- fig_2_panel_2(AO_data, AO_event_2013_16, NULL)
 panel_2 <- ggpubr::ggarrange(panel_2_FL, panel_2_TS, panel_2_AO, align = "hv", 
                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
 # panel_2
 
 # Lolliplots of duration
-fig_2_panel_3 <- function(MCS_data, event_sub){
-  pixel_sub <- MCS_data$event_data %>% 
-    filter(lon == event_sub$lon[1],
-           lat == event_sub$lat[1]) 
-  ld <- pixel_sub %>% 
+fig_2_panel_3 <- function(MCS_pixel, event_sub, y_label){
+  pixel_sub <- MCS_pixel$event_data %>%
+    filter(lon == event_sub$lon_centre[1],
+           lat == event_sub$lat_centre[1],
+           event_no == event_sub$event_no_centre[1])
+  ld <- MCS_pixel$event_data %>% 
     ggplot(aes(x = date_peak, y = duration)) +
     geom_lolli(colour = "steelblue3") +
-    geom_lolli(data = event_sub, colour = "navy") +
-    scale_y_continuous(limits = c(0, max(pixel_sub$duration)*1.1), expand = c(0,0)) +
-    labs(x = NULL, y = "Duration (days)", colour = "Events") +
+    geom_lolli(data = pixel_sub, colour = "navy") +
+    scale_y_continuous(limits = c(0, max(MCS_pixel$event_data$duration)*1.1), expand = c(0,0)) +
+    labs(x = NULL, y = y_label, colour = "Events") +
     theme(axis.text.x = element_blank(),
-          panel.border = element_rect(colour = "black", fill = NA))
+          axis.ticks.x = element_blank(),
+          panel.border = element_rect(colour = "black", fill = NA),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12),
+          legend.title = element_text(size = 14),
+          legend.text = element_text(size = 12))
   # ld
 }
-panel_3_FL <- fig_2_panel_3(FL_data, FL_event_2003)
-panel_3_TS <- fig_2_panel_3(TS_data, TS_event_2008)
-panel_3_AO <- fig_2_panel_3(AO_data, AO_event_2013_15)
+panel_3_FL <- fig_2_panel_3(FL_pixel, FL_event_2003, "Duration (days)")
+panel_3_TS <- fig_2_panel_3(TS_pixel, TS_event_2008, NULL)
+panel_3_AO <- fig_2_panel_3(AO_pixel, AO_event_2013_16, NULL)
 # panel_3 <- ggpubr::ggarrange(panel_3_FL, panel_3_TS, panel_3_AO, align = "hv", 
 #                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
 # panel_3
 
 # Lolliplots of max intensity
-fig_2_panel_4 <- function(MCS_data, event_sub){
-  pixel_sub <- MCS_data$event_data %>% 
-    filter(lon == event_sub$lon[1],
-           lat == event_sub$lat[1]) 
-  lim <- pixel_sub %>% 
-    filter(lon == event_sub$lon[1],
-           lat == event_sub$lat[1]) %>% 
+fig_2_panel_4 <- function(MCS_pixel, event_sub, y_label){
+  pixel_sub <- MCS_pixel$event_data %>%
+    filter(lon == event_sub$lon_centre[1],
+           lat == event_sub$lat_centre[1],
+           event_no == event_sub$event_no_centre[1])
+  lim <- MCS_pixel$event_data %>% 
     ggplot(aes(x = date_peak, y = intensity_max)) +
     geom_lolli(colour = "steelblue3") +
-    geom_lolli(data = event_sub, colour = "navy") +
-    scale_y_continuous(limits = c(min(pixel_sub$intensity_max)*1.1, 0), expand = c(0,0)) +
-    labs(x = NULL, y = "Maximum Intensity (°C)", colour = "Events") +
+    geom_lolli(data = pixel_sub, colour = "navy") +
+    scale_y_continuous(limits = c(min(MCS_pixel$event_data$intensity_max, na.rm = T)*1.1, 0), expand = c(0,0)) +
+    labs(x = NULL, y = y_label, colour = "Events") +
     theme(axis.text.x = element_blank(),
-          panel.border = element_rect(colour = "black", fill = NA))
+          axis.ticks.x = element_blank(),
+          panel.border = element_rect(colour = "black", fill = NA),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12),
+          legend.title = element_text(size = 14),
+          legend.text = element_text(size = 12))
   # lim
 }
-panel_4_FL <- fig_2_panel_4(FL_data, FL_event_2003)
-panel_4_TS <- fig_2_panel_4(TS_data, TS_event_2008)
-panel_4_AO <- fig_2_panel_4(AO_data, AO_event_2013_15)
+panel_4_FL <- fig_2_panel_4(FL_pixel, FL_event_2003, "Max. intensity (°C)")
+panel_4_TS <- fig_2_panel_4(TS_pixel, TS_event_2008, NULL)
+panel_4_AO <- fig_2_panel_4(AO_pixel, AO_event_2013_16, NULL)
 # panel_4 <- ggpubr::ggarrange(panel_4_FL, panel_4_TS, panel_4_AO, align = "hv", 
 #                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
 # panel_4
 
 # Lolliplots of max intensity
-fig_2_panel_5 <- function(MCS_data, event_sub){
-  pixel_sub <- MCS_data$event_data %>% 
-    filter(lon == event_sub$lon[1],
-           lat == event_sub$lat[1]) 
-  lic <- pixel_sub %>% 
-    filter(lon == event_sub$lon[1],
-           lat == event_sub$lat[1]) %>% 
+fig_2_panel_5 <- function(MCS_pixel, event_sub, y_label){
+  pixel_sub <- MCS_pixel$event_data %>%
+    filter(lon == event_sub$lon_centre[1],
+           lat == event_sub$lat_centre[1],
+           event_no == event_sub$event_no_centre[1])
+  lic <- MCS_pixel$event_data %>%  
     ggplot(aes(x = date_peak, y = intensity_cumulative)) +
     geom_lolli(colour = "steelblue3") +
-    geom_lolli(data = event_sub, colour = "navy") +
-    scale_y_continuous(limits = c(min(pixel_sub$intensity_cumulative)*1.1, 0), expand = c(0,0)) +
-    labs(x = "Peak date", y = "Cum. Intensity (°C)", colour = "Events") +
-    theme(panel.border = element_rect(colour = "black", fill = NA))
+    geom_lolli(data = pixel_sub, colour = "navy") +
+    scale_y_continuous(limits = c(min(MCS_pixel$event_data$intensity_cumulative)*1.1, 0), expand = c(0,0)) +
+    labs(x = NULL, y = y_label, colour = "Events") +
+    theme(panel.border = element_rect(colour = "black", fill = NA),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12),
+          legend.title = element_text(size = 14),
+          legend.text = element_text(size = 12))
   # lic
 }
-panel_5_FL <- fig_2_panel_5(FL_data, FL_event_2003)
-panel_5_TS <- fig_2_panel_5(TS_data, TS_event_2008)
-panel_5_AO <- fig_2_panel_5(AO_data, AO_event_2013_15)
+panel_5_FL <- fig_2_panel_5(FL_pixel, FL_event_2003, "Cum. int. (°C days)")
+panel_5_TS <- fig_2_panel_5(TS_pixel, TS_event_2008, NULL)
+panel_5_AO <- fig_2_panel_5(AO_pixel, AO_event_2013_16, NULL)
 # panel_5 <- ggpubr::ggarrange(panel_5_FL, panel_5_TS, panel_5_AO, align = "hv", 
 #                              common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
 # panel_5
 
+# COmbine all lollis
 panel_lollis <- ggpubr::ggarrange(panel_3_FL, panel_3_TS, panel_3_AO,
                                   panel_4_FL, panel_4_TS, panel_4_AO,
                                   panel_5_FL, panel_5_TS, panel_5_AO, 
@@ -332,7 +353,7 @@ fig_2 <- ggpubr::ggarrange(panel_1, panel_2, panel_lollis, heights = c(1.2, 0.7,
                            ncol = 1, nrow = 3, align = "hv")
 ggsave("figures/fig_2.png", fig_2, height = 14, width = 15)
 ggsave("figures/fig_2.pdf", fig_2, height = 14, width = 15)
-rm(FL_data, TS_data, AO_data); gc()
+# rm(FL_data, TS_data, AO_data); gc()
 
 
 # Figure 3 ----------------------------------------------------------------
@@ -621,47 +642,37 @@ ggsave("figures/fig_5.pdf", fig_5, height = 14, width = 7)
 # Figure 6 ----------------------------------------------------------------
 # Comparison of SSTa skewness and MHW vs. MCS intensity
 
-
-# Make skewness colour much more clear. White for 0
-
-
 # Load the MCS vs. MHW results
 MHW_v_MCS <- readRDS("data/MHW_v_MCS.Rds")
 
 # Melt long for easier plotting
 MHW_v_MCS_long <- MHW_v_MCS %>% 
   pivot_longer(cols = count:i_cum, names_to = "name", values_to = "value") %>% 
-  na.omit()
+  na.omit() %>% 
+  filter(name == "i_max",
+         lat >= -70, lat <= 70)
 
-# Figure for plotting the panels
-fig_6_func <- function(var_name, rn = 2){
-  
-  # Basic filter
-  df <- MHW_v_MCS_long %>% 
-    filter(name == var_name,
-           lat >= -70, lat <= 70)
-  
-  # Find 10th and 90th quantiles to round off tails for plotting
-  q05 <- quantile(df$value, 0.05, names = F)
-  q10 <- quantile(df$value, 0.1, names = F)
-  q50 <- quantile(df$value, 0.5, names = F)
-  q90 <- quantile(df$value, 0.9, names = F)
-  q95 <- quantile(df$value, 0.95, names = F)
-  
-  # Figure
-  df %>% 
-    mutate(value = case_when(value <= q05 ~ q05,
+# Find 10th and 90th quantiles to round off tails for plotting
+q05 <- quantile(MHW_v_MCS_long$value, 0.05, names = F)
+q10 <- quantile(MHW_v_MCS_long$value, 0.1, names = F)
+q50 <- quantile(MHW_v_MCS_long$value, 0.5, names = F)
+q90 <- quantile(MHW_v_MCS_long$value, 0.9, names = F)
+q95 <- quantile(MHW_v_MCS_long$value, 0.95, names = F)
+
+# Plot max intensity
+fig_6a <- MHW_v_MCS_long %>%
+  mutate(value = case_when(value <= q05 ~ q05,
                              value >= q95 ~ q95,
                              TRUE ~ value)) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = value)) +
-    geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+    geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
-    scale_fill_gradient2(low = "blue", mid = "grey", high = "red",
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red",
                          breaks = c(q05, q50, q95), 
-                         labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")),) +
+                         labels = c(paste0("  <",round(q05, 2)), round(q50, 2), paste0(round(q95, 2),">")),) +
     guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-    labs(x = NULL, y = NULL, fill = var_name) +
+    labs(x = NULL, y = NULL, fill =  "Max. intensity (°C)") +
     # theme_void() +
     theme(panel.border = element_rect(colour = "black", fill = NA),
           legend.position = "top",
@@ -669,11 +680,7 @@ fig_6_func <- function(var_name, rn = 2){
           legend.text = element_text(size = 12),
           axis.text = element_blank(),
           axis.ticks = element_blank())
-}
-
-# Plot a metric
-fig_6a <- fig_6_func("i_max") +
-  labs(fill = "Max. intensity (°C)")
+fig_6a
 
 # Prep SSTa stats
 SSTa_stats <- readRDS("data/SSTa_stats.Rds") %>% 
@@ -682,13 +689,6 @@ SSTa_stats <- readRDS("data/SSTa_stats.Rds") %>%
   mutate(name = case_when(name == "anom_kurt" ~ "kurtosis",
                           name == "anom_skew" ~ "skewness")) %>% 
   filter(lat >= -70, lat <= 70)
-
-# Prep data for plotting
-# SSTa_prep <- SSTa_stats %>% 
-#   filter(season == "Total") %>% 
-#   pivot_wider(names_from = "name", values_from = "value") %>% 
-#   left_join(MHW_v_MCS) %>% 
-#   na.omit()
 
 # Find upper skewness and kurtosis quantiles
 skew_quants <- SSTa_stats %>% 
@@ -707,9 +707,11 @@ fig_6b <- SSTa_stats %>%
                            TRUE ~ value)) %>% 
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = value)) +
-  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
-  scale_fill_gradient2("Skewness", low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2],
+  scale_fill_gradient2("Skewness",
+                       low = "blue", mid = "white", high = "red",
+                       # low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2],
                        breaks = c(skew_quants$q05, skew_quants$q50, skew_quants$q95), 
                        labels = c(paste0("  <",round(skew_quants$q05, 1)), 
                                   round(skew_quants$q50, 1), 
@@ -725,9 +727,10 @@ fig_6b <- SSTa_stats %>%
         axis.ticks = element_blank())
 # fig_6b
 
-fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 2, nrow = 1, labels = c("A)", "B)"))
-ggsave("figures/fig_6.png", fig_6, height = 3, width = 11)
-ggsave("figures/fig_6.pdf", fig_6, height = 3, width = 11)
+# Save
+fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 1, nrow = 2, labels = c("A)", "B)"))
+ggsave("figures/fig_6.png", fig_6, height = 7, width = 7)
+ggsave("figures/fig_6.pdf", fig_6, height = 7, width = 7)
 
 
 # Figure 7 ----------------------------------------------------------------
@@ -761,16 +764,19 @@ fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
   scale_y_continuous(limits = c(0, 0.08),
                      breaks = seq(0.02, 0.06, length.out = 3),
-                     labels = paste0(seq(2, 6, by = 2), "%")) +
+                     labels = paste0(seq(2, 6, by = 2), "%"),
+                     sec.axis = sec_axis(name = "Average annual MCS days", trans = ~ . + 0,
+                                         breaks = c(0.0137, 0.0274, 0.0411, 0.0548, 0.0685),
+                                         labels = c(5, 10, 15, 20, 25))) +
   scale_x_continuous(breaks = seq(1984, 2019, 7)) +
   guides(pattern_colour = FALSE, colour = FALSE) +
-  labs(y = "Average daily MCS \ncoverage for ocean", x = NULL) +
+  labs(y = "Average daily MCS coverage", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 16))
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12))
 # fig_count_historic
 
 # Stacked barplot of cumulative percent of ocean affected by MHWs
@@ -784,18 +790,19 @@ fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)
   scale_fill_manual("Category", values = MCS_colours) +
   scale_colour_manual(values = c("lightpink", "plum")) +
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
-  scale_y_continuous(limits = c(0, 0.65),
+  scale_y_continuous(position = "right", 
+                     limits = c(0, 0.65),
                      breaks = seq(0.15, 0.6, length.out = 4),
                      labels = paste0(seq(15, 60, by = 15), "%")) +
   scale_x_continuous(breaks = seq(1984, 2019, 7)) +
-  labs(y = "Ocean surface experiencing \nat least one MCS", x = NULL) +
+  labs(y = "Total annual MCS coverage", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
         legend.position = "none",
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 16))
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12))
 # fig_cum_historic
 
 # Stacked barplot of average cumulative MHW days per pixel
@@ -812,14 +819,14 @@ fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop))
   scale_y_continuous(limits = c(0, 27),
                      breaks = seq(5, 25, length.out = 5)) +
   scale_x_continuous(breaks = seq(1984, 2019, 7)) +
-  labs(y = "Average MCS days for ocean", x = NULL) +
+  labs(y = "Average MCS days", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
         legend.position = "none",
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 16))
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12))
 # fig_prop_historic
 
 # Create the figure title
@@ -830,11 +837,11 @@ fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
                     "\n",product_title,"; Climatogy period: 1982-2011")
 
 # Stick them together and save
-fig_7 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, fig_prop_historic,
-                           ncol = 3, align = "hv", labels = c("A)", "B)", "C)"), hjust = -0.1,
-                           font.label = list(size = 14), common.legend = T, legend = "bottom")
-ggsave(fig_7, filename = paste0("figures/fig_7.png"), height = 4.25, width = 12)
-ggsave(fig_7, filename = paste0("figures/fig_7.pdf"), height = 4.25, width = 12)
+fig_7 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, #fig_prop_historic,
+                           ncol = 2, align = "hv", labels = c("A)", "B)"), #hjust = -0.1,
+                           font.label = list(size = 12), common.legend = T, legend = "bottom")
+ggsave(fig_7, filename = paste0("figures/fig_7.png"), height = 3.75, width = 8)
+ggsave(fig_7, filename = paste0("figures/fig_7.pdf"), height = 3.75, width = 8)
 
 # Summed up annual ice values for easier reading
 sum_ice <- MCS_total_ice %>% 
@@ -910,3 +917,51 @@ lm_days
 
 # Where does the near ice category get flagged
 # A map of where the ice flagged MHWs are
+
+# Pixels with near-ice
+load("metadata/lon_lat_OISST_ice.RData")
+lon_lat_OISST_ice$ice_int <- as.integer(lon_lat_OISST_ice$ice)
+
+# Load event count data per pixel
+# NB: This is created in the ice category vignette
+MCS_cat_count <- readRDS("data/MCS_cat_count.Rds")
+
+# Calculate the total count of MCSs per pixel
+MCS_cat_count_total <- MCS_cat_count %>%
+  filter(method == "ice") %>%
+  # mutate(category = "total count") %>%
+  group_by(lon, lat) %>%
+  summarise(total_count = sum(cat_count), .groups = "drop")
+
+# Calculate the proportion of Ice events per pixel
+MCS_cat_count_proc <- MCS_cat_count %>%
+  filter(method == "ice",
+         category == "V Ice") %>% 
+  dplyr::select(lon, lat, category, cat_count) %>%
+  pivot_wider(values_from = cat_count, names_from = category) %>%
+  right_join(MCS_cat_count_total, by = c("lon", "lat")) %>% 
+  mutate_all(~replace(., is.na(.), 0)) %>%
+  mutate(ice_prop = round(`V Ice`/total_count, 4))
+
+# Ice area and proportion of ICE MCS
+fig_S1 <- MCS_cat_count_proc %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_tile(aes(fill = ice_prop)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
+  geom_contour(data = lon_lat_OISST_ice, aes(z = ice_int), colour = "black", breaks = c(1)) +
+  coord_quickmap(expand = F, ylim = c(-70, 70)) +
+  scale_fill_gradient(low = "white", high = "mediumaquamarine") +
+  guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
+  labs(x = NULL, y = NULL, fill =  "Proportion Ice MCS") +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "top",
+        legend.title = element_text(size = 14, vjust = 1),
+        legend.text = element_text(size = 12),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+fig_S1
+
+# Save
+ggsave("figures/fig_S1.png", fig_S1, height = 3.5, width = 7)
+ggsave("figures/fig_S1.pdf", fig_S1, height = 3.5, width = 7)
+

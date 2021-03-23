@@ -221,18 +221,19 @@ load_MCS_clim_sub <- function(file_name, date_range,
 }
 
 # Function for loading all data streams
-load_MCS_ALL <- function(bbox){
+load_MCS_ALL <- function(bbox, date_range = c("1982-01-01", "2020-12-31")){
   # Load event data
   event_data <- plyr::ldply(MCS_lon_files[which(lon_OISST >= bbox[3] & lon_OISST <= bbox[4])], 
                             .fun = load_MCS_event_sub, .parallel = T, 
-                            date_range = c("1982-01-01", "2020-12-31"),
+                            # date_range = c("1982-01-01", "2020-12-31"),
+                            date_range = date_range,
                             lat_range = c(bbox[1], bbox[2]))
   
   # Load clim data
   clim_data <- plyr::ldply(MCS_lon_files[which(lon_OISST >= bbox[3] & lon_OISST <= bbox[4])], 
                            .fun = load_MCS_clim_sub, .parallel = T, 
-                           date_range = c("1982-01-01", "2020-12-31"),
-                           # date_range = date_range,
+                           # date_range = c("1982-01-01", "2020-12-31"),
+                           date_range = date_range,
                            lat_range = c(bbox[1], bbox[2]))
   
   # Combine into list and exit
