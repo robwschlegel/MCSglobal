@@ -373,6 +373,7 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
     slope_low <- "lightgoldenrod"
     slope_high <- "cadetblue4"
     rn <- 1
+    mid_q <- q05
     if(!mean_plot) rn <- 2
   } else if(var_name == "dur_mean") {
     viridis_choice <- "C"
@@ -380,12 +381,14 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
     slope_low <- "lightgoldenrod"
     slope_high <- "deepskyblue4"
     rn <- 1
+    mid_q <- q05
   } else if(var_name == "i_max_mean") {
     viridis_choice <- "B"
     vir_dir <- -1
     slope_low <- "royalblue4"
     slope_high <- "lightgoldenrod"
     rn <- 1
+    mid_q <- q95
     if(!mean_plot) rn <- 2
   }  else {
     viridis_choice <- "D"
@@ -393,6 +396,7 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
     slope_low <- "slateblue4"
     slope_high <- "lightgoldenrod"
     rn <- 1
+    mid_q <- q95
   }
   
   # The figure without colour palette
@@ -405,9 +409,6 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
     geom_raster(aes(fill = val)) +
     # geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
     # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
-    scale_fill_gradient2(low = slope_low, high = slope_high,
-                         breaks = c(q05, q50, q95), 
-                         labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">"))) +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
     labs(x = NULL, y = NULL, fill = legend_title) +
     guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
@@ -422,10 +423,10 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
   # Add the colour palette
   if(mean_plot){
     map_res <- map_res +
-      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70")# +
-      # scale_fill_gradient2(low = slope_low, high = slope_high,
-      #                      breaks = c(q05, q50, q95), 
-      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
+      scale_fill_gradient2(low = slope_low, high = slope_high,
+                           breaks = c(q05, q50, q95), midpoint = mid_q,
+                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
       # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir,
       #                      breaks = c(q05, q50, q95),
       #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
@@ -437,10 +438,10 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
   } else{
     map_res <- map_res +
       geom_point(data = df_p, size = 0.01, alpha = 0.2) +
-      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") #+
-      # scale_fill_gradient2(low = slope_low, high = slope_high,
-      #                      breaks = c(q05, q50, q95), 
-      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
+      scale_fill_gradient2(low = slope_low, high = slope_high,
+                           breaks = c(q05, q50, q95),
+                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
   }
   map_res
 }
