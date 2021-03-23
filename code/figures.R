@@ -177,7 +177,7 @@ fig_2_panel_1 <- function(MCS_data, event_sub, lon_breaks, lon_label, lat_breaks
     scale_fill_gradientn(colours = c(RColorBrewer::brewer.pal(9, "Blues")[c(8,7,6,5,4,3,2,1)],
                                      "white", RColorBrewer::brewer.pal(9, "Reds")[c(1, 2)]),
                          limits = c(-8, 2),
-                         breaks = seq(-8, 2, 1), 
+                         breaks = seq(-8, 2, 1),
                          guide = "legend", na.value = NA) +
     guides(fill = guide_legend(nrow = 1, byrow = TRUE, label.position = "bottom")) +
     labs(x = NULL, y = NULL, fill = "SSTa (°C)") +
@@ -316,16 +316,26 @@ rm(FL_data, TS_data, AO_data); gc()
 # Figure 3 ----------------------------------------------------------------
 # Maps of the mean metrics
 
+
+# Change colour bars to discrete steps
+# Change land to grey
+# Use blue and yellow for the contrasting changes in Metrics
+# Or light yellow to dark blue
+
+
 # Load all results into one brick
 MCS_count_trend <- readRDS("data/MCS_count_trend.Rds")
 unique(MCS_count_trend$name)
 
 # Only the significant values
+# Filter down pixels for better plotting
 MCS_sig <- MCS_count_trend %>% 
-  filter(p.value <= 0.05)
+  filter(p.value <= 0.05,
+         lon %in% seq(-179.875, 179.875, 1),
+         lat %in% seq(-78.375, 89.375, 1))
 
-# Figures of trends and annual states
-fig_4_func <- function(var_name, legend_title, mean_plot = T){
+# Figures of trends and annual statesx
+fig_map_func <- function(var_name, legend_title, mean_plot = T){
   
   # Determine which column to plot
   if(mean_plot){
@@ -344,7 +354,9 @@ fig_4_func <- function(var_name, legend_title, mean_plot = T){
   
   # Significant results
   df_p <- df %>% 
-    filter(p.value <= 0.05)
+    filter(p.value <= 0.05,
+           lon %in% seq(-179.875, 179.875, 2),
+           lat %in% seq(-78.375, 89.375, 2))
   
   # Find quantiles to round off tails for plotting
   q05 <- quantile(df$val, 0.05, names = F)
@@ -357,40 +369,45 @@ fig_4_func <- function(var_name, legend_title, mean_plot = T){
   if(var_name == "total_count") {
     viridis_choice <- "A"
     vir_dir <- 1
-    slope_low <- "plum"
-    slope_high <- "gold"
+    # col_pal <- viridis::magma(n = 8, direction = 1)
+    slope_low <- "lightgoldenrod"
+    slope_high <- "cadetblue4"
     rn <- 1
     if(!mean_plot) rn <- 2
   } else if(var_name == "dur_mean") {
     viridis_choice <- "C"
     vir_dir <- 1
-    slope_low <- "orange"
-    slope_high <- "olivedrab"
+    slope_low <- "lightgoldenrod"
+    slope_high <- "deepskyblue4"
     rn <- 1
   } else if(var_name == "i_max_mean") {
     viridis_choice <- "B"
     vir_dir <- -1
-    slope_low <- "blue"
-    slope_high <- "red"
+    slope_low <- "royalblue4"
+    slope_high <- "lightgoldenrod"
     rn <- 1
     if(!mean_plot) rn <- 2
   }  else {
     viridis_choice <- "D"
     vir_dir <- -1
-    slope_low <- "blue"
-    slope_high <- "red"
+    slope_low <- "slateblue4"
+    slope_high <- "lightgoldenrod"
     rn <- 1
   }
   
   # The figure without colour palette
   map_res <- df %>% 
-    mutate(val = case_when(val <= q05 ~ q05,
+    mutate(val = round(val, rn),
+           val = case_when(val <= q05 ~ q05,
                            val >= q95 ~ q95,
                            TRUE ~ val)) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_raster(aes(fill = val)) +
-    geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
+    # geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
     # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
+    scale_fill_gradient2(low = slope_low, high = slope_high,
+                         breaks = c(q05, q50, q95), 
+                         labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">"))) +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
     labs(x = NULL, y = NULL, fill = legend_title) +
     guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
@@ -405,29 +422,40 @@ fig_4_func <- function(var_name, legend_title, mean_plot = T){
   # Add the colour palette
   if(mean_plot){
     map_res <- map_res +
-      scale_fill_viridis_c(option = viridis_choice, direction = vir_dir, 
-                           breaks = c(q05, q50, q95), 
-                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70")# +
+      # scale_fill_gradient2(low = slope_low, high = slope_high,
+      #                      breaks = c(q05, q50, q95), 
+      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+      # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir,
+      #                      breaks = c(q05, q50, q95),
+      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+      # scale_fill_gradientn(colours = col_pal,
+      #                      limits = c(q05, q95),
+      #                      breaks = c(q05, q50, q95),
+      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")),
+      #                      guide = "legend", na.value = NA)
   } else{
     map_res <- map_res +
-      scale_fill_gradient2(low = slope_low, high = slope_high,
-                           breaks = c(q05, q50, q95), 
-                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+      geom_point(data = df_p, size = 0.01, alpha = 0.2) +
+      geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") #+
+      # scale_fill_gradient2(low = slope_low, high = slope_high,
+      #                      breaks = c(q05, q50, q95), 
+      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
   }
   map_res
 }
 
 # Create panels
-fig_4a <- fig_4_func("total_count", "Count (n)")
-fig_4b <- fig_4_func("dur_mean", "Duration\n(days)")
-fig_4c <- fig_4_func("i_max_mean", "Maximum\nintensity (°C)")
-fig_4d <- fig_4_func("i_cum_mean", "Cumulative\nintensity (°C days)")
+fig_3a <- fig_map_func("total_count", "Count (n)")
+fig_3b <- fig_map_func("dur_mean", "Duration (days)")
+fig_3c <- fig_map_func("i_max_mean", "Maximum intensity (°C)")
+fig_3d <- fig_map_func("i_cum_mean", "Cumulative intensity (°C days)")
 
 # Combine and save
-fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, ncol = 2, nrow = 2, 
+fig_3 <- ggpubr::ggarrange(fig_3a, fig_3b, fig_3c, fig_3d, ncol = 1, nrow = 4, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("figures/fig_4.png", fig_4, height = 6, width = 11)
-ggsave("figures/fig_4.pdf", fig_4, height = 6, width = 11)
+ggsave("figures/fig_3.png", fig_3, height = 14, width = 7)
+ggsave("figures/fig_3.pdf", fig_3, height = 14, width = 7)
 
 
 # Figure 4 ----------------------------------------------------------------
@@ -482,7 +510,7 @@ MCS_annual_global_mean_aov <- MCS_annual_global_mean_long %>%
   mutate(p.value = round(p.value, 4))
 
 # Function for creating line plots
-fig_5_func <- function(var_name, y_title, y_val){
+fig_line_func <- function(var_name, y_title, y_val){
   
   # Subset slope and ANOVA results
   sub_slope <- MCS_annual_global_mean_trends %>% 
@@ -532,17 +560,17 @@ fig_5_func <- function(var_name, y_title, y_val){
 }
 
 # Create the panels
-fig_5a <- fig_5_func("count_annual", "Count (n)", c(3.35, 0.45))
-fig_5b <- fig_5_func("duration", "Duration\n(days)", c(62, -5))
-fig_5c <- fig_5_func("intensity_max", "Maximum\nintensity (°C)", c(-0.31, -1.57))
-fig_5d <- fig_5_func("intensity_cumulative", "Cumulative\nintensity (°C days)", c(0, -30))
-fig_5e <- fig_5_func("temp_anom", "Temperature\nanomaly (°C)", c(0.335, -0.32))
+fig_4a <- fig_line_func("count_annual", "Count (n)", c(3.35, 0.45))
+fig_4b <- fig_line_func("duration", "Duration\n(days)", c(62, -5))
+fig_4c <- fig_line_func("intensity_max", "Maximum\nintensity (°C)", c(-0.31, -1.57))
+fig_4d <- fig_line_func("intensity_cumulative", "Cumulative\nintensity (°C days)", c(0, -30))
+fig_4e <- fig_line_func("temp_anom", "Temperature\nanomaly (°C)", c(0.335, -0.32))
 
 # Combine and save
-fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, fig_5e, ncol = 1, nrow = 5, 
+fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, fig_4e, ncol = 1, nrow = 5, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)", "E)"), common.legend = T)
-ggsave("figures/fig_5.png", fig_5, height = 11, width = 7)
-ggsave("figures/fig_5.pdf", fig_5, height = 11, width = 7)
+ggsave("figures/fig_4.png", fig_4, height = 11, width = 7)
+ggsave("figures/fig_4.pdf", fig_4, height = 11, width = 7)
 
 
 # Figure 5 ----------------------------------------------------------------
@@ -550,16 +578,16 @@ ggsave("figures/fig_5.pdf", fig_5, height = 11, width = 7)
 # NB: This requires functions from Figure 4 code section
 
 # Crate panels
-fig_6a <- fig_4_func("total_count", "Count (n)", mean_plot = F)
-fig_6b <- fig_4_func("dur_mean", "Duration\n(days)", mean_plot = F)
-fig_6c <- fig_4_func("i_max_mean", "Maximum\nintensity (°C)", mean_plot = F)
-fig_6d <- fig_4_func("i_cum_mean", "Cumulative\nintensity (°C days)", mean_plot = F)
+fig_5a <- fig_map_func("total_count", "Count (n)", mean_plot = F)
+fig_5b <- fig_map_func("dur_mean", "Duration (days)", mean_plot = F)
+fig_5c <- fig_map_func("i_max_mean", "Maximum intensity (°C)", mean_plot = F)
+fig_5d <- fig_map_func("i_cum_mean", "Cumulative intensity (°C days)", mean_plot = F)
 
 # Combine and save
-fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, fig_6c, fig_6d, ncol = 2, nrow = 2, 
+fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, ncol = 1, nrow = 4, 
                            align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("figures/fig_6.png", fig_6, height = 6, width = 11)
-ggsave("figures/fig_6.pdf", fig_6, height = 6, width = 11)
+ggsave("figures/fig_5.png", fig_5, height = 14, width = 7)
+ggsave("figures/fig_5.pdf", fig_5, height = 14, width = 7)
 
 
 # Figure 6 ----------------------------------------------------------------
@@ -578,7 +606,7 @@ MHW_v_MCS_long <- MHW_v_MCS %>%
   na.omit()
 
 # Figure for plotting the panels
-fig_7_func <- function(var_name, rn = 2){
+fig_6_func <- function(var_name, rn = 2){
   
   # Basic filter
   df <- MHW_v_MCS_long %>% 
@@ -616,7 +644,7 @@ fig_7_func <- function(var_name, rn = 2){
 }
 
 # Plot a metric
-fig_7a <- fig_7_func("i_max") +
+fig_6a <- fig_6_func("i_max") +
   labs(fill = "Max. intensity (°C)")
 
 # Prep SSTa stats
@@ -644,7 +672,7 @@ skew_quants <- SSTa_stats %>%
             q95 = quantile(value, 0.95, names = F))
 
 # Map of skewness per pixel
-fig_7b <- SSTa_stats %>% 
+fig_6b <- SSTa_stats %>% 
   filter(name == "skewness", season == "Total") %>% 
   mutate(value = case_when(value <= skew_quants$q05 ~ skew_quants$q05,
                            value >= skew_quants$q95 ~ skew_quants$q95,
@@ -667,11 +695,11 @@ fig_7b <- SSTa_stats %>%
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-# fig_7b
+# fig_6b
 
-fig_7 <- ggpubr::ggarrange(fig_7a, fig_7b, ncol = 2, nrow = 1, labels = c("A)", "B)"))
-ggsave("figures/fig_7.png", fig_7, height = 3, width = 11)
-ggsave("figures/fig_7.pdf", fig_7, height = 3, width = 11)
+fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 2, nrow = 1, labels = c("A)", "B)"))
+ggsave("figures/fig_6.png", fig_6, height = 3, width = 11)
+ggsave("figures/fig_6.pdf", fig_6, height = 3, width = 11)
 
 
 # Figure 7 ----------------------------------------------------------------
