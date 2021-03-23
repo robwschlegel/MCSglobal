@@ -59,7 +59,7 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
   #            aes(x = as.Date("2018-02-22"), xend = as.Date("2018-02-10"),
   #                y = 25.8013, yend = 19.39), curvature = -0.4) +
   geom_label(aes(label = "Cum. Intensity = -70.04°CxDays", x = as.Date("2018-02-26"), y = 22.0),
-             colour = "steelblue1", label.size = 1) +
+             colour = "steelblue1", label.size = 2) +
   geom_label(aes(label = "Cum. Intensity = -70.04°C days", x = as.Date("2018-02-26"), y = 22.0),
              colour = "black", label.size = 0) +
   # Max intensity label
@@ -67,7 +67,7 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
                aes(x = as.Date("2018-02-10"), xend = as.Date("2018-02-10"),
                    y = 25.6323, yend = 19.0)) +
   geom_label(aes(label = "Max. Intensity = -6.24°C", x = as.Date("2018-02-10"), y = 18.8),
-             colour = "midnightblue", label.size = 1) +
+             colour = "midnightblue", label.size = 2) +
   geom_label(aes(label = "Max. Intensity = -6.24°C", x = as.Date("2018-02-10"), y = 18.8),
              colour = "black", label.size = 0) +
   # Duration label
@@ -81,7 +81,7 @@ fig_1 <- ggplot(data = AC_data_clim_sub, aes(x = t)) +
                aes(x = as.Date("2018-01-29"), xend = as.Date("2018-02-22"),
                    y = 26.5, yend = 26.5)) +
   geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.5),
-             colour = "slateblue1", label.size = 1) +
+             colour = "slateblue1", label.size = 2) +
   geom_label(aes(label = "Duration = 25 days", x = as.Date("2018-02-10"), y = 26.5),
              colour = "black", label.size = 0) +
   # Other aesthetics
@@ -465,12 +465,15 @@ ggsave("figures/fig_3.pdf", fig_3, height = 14, width = 7)
 # Load annual data
 MCS_annual_mean <- read_rds("data/MCS_annual_mean.Rds")
 
+# Pixels with near-ice
+load("metadata/lon_lat_OISST_ice.RData")
+
 # Join with ice data and create global means
 MCS_annual_global_mean <- MCS_annual_mean %>% 
   left_join(lon_lat_OISST_ice, by = c("lon", "lat")) %>% 
-  mutate(ice_group = case_when(ice & lat <= 0 ~ "ice S",
-                               ice & lat > 0 ~ "ice N",
-                               TRUE ~ "ocean")) %>% 
+  mutate(ice_group = case_when(ice & lat <= 0 ~ "S ice",
+                               ice & lat > 0 ~ "N ice",
+                               TRUE ~ "Ocean")) %>% 
   group_by(year, ice_group) %>% 
   summarise_all("mean", .groups = "drop") %>% 
   dplyr::select(-ice, -lon, -lat) %>% 
@@ -511,13 +514,12 @@ MCS_annual_global_mean_aov <- MCS_annual_global_mean_long %>%
   mutate(p.value = round(p.value, 4))
 
 # Function for creating line plots
-fig_line_func <- function(var_name, y_title, y_val){
+fig_line_func <- function(var_name, y_title, y_val, y_expand){
   
   # Subset slope and ANOVA results
   sub_slope <- MCS_annual_global_mean_trends %>% 
     filter(name == var_name) %>% 
-    mutate(ice_group = ifelse(ice_group == "ocean", "open", ice_group),
-           slope = paste0("m = ",round(slope, 3)),
+    mutate(slope = paste0("m = ",round(slope, 3)),
            p.value = case_when(p.value < 0.01 ~ "p < 0.01",
                                p.value >= 0.01 ~ paste0("p = ",round(p.value,2))),
            label = paste0(slope,"; ",p.value))
@@ -530,42 +532,45 @@ fig_line_func <- function(var_name, y_title, y_val){
   # Plot the chosen variable
   MCS_annual_global_mean_long %>% 
     filter(name == var_name) %>% 
-    mutate(ice_group = ifelse(ice_group == "ocean", "open", ice_group)) %>% 
     ggplot(aes(x = year, y = value)) +
     # Add lines, points, and lm
     geom_line(aes(colour = ice_group), show.legend = F) +
     geom_point(aes(colour = ice_group)) +
     geom_smooth(aes(colour = ice_group), show.legend = F, method = "lm", formula = "y ~ x", size = 2) +
     # Add slope labels
-    geom_label(data = sub_slope, label.size = 3, show.legend = F,
+    geom_label(data = sub_slope, label.size = 2, show.legend = F,
                aes(x = c(1990, 2000, 2010), y = y_val[1], label = label, colour = ice_group)) +
     geom_label(data = sub_slope, label.size = 0,
                aes(x = c(1990, 2000, 2010), y = y_val[1], label = label)) +
     # Add ANOVA label
-    geom_label(data = sub_ANOVA, label.size = 3, show.legend = F,
+    geom_label(data = sub_ANOVA, label.size = 2, show.legend = F,
                aes(x = 2000, y = y_val[2], label = label), colour = "darkorchid") +
     geom_label(data = sub_ANOVA, label.size = 0,
                aes(x = 2000, y = y_val[2], label = label)) +
     # Other
-    scale_x_continuous(breaks = seq(1982, 2020, 5), expand = c(0, 0)) +
-    scale_color_brewer(palette = "Paired") +
+    # scale_x_continuous(breaks = seq(1982, 2020, 5), expand = c(0, 0)) +
+    scale_x_continuous(breaks = seq(1984, 2019, 7), expand = c(0, 0)) +
+    # scale_y_continuous(limits = c(y_val[2]*1.1, y_val[1]*1.1)) +
+    scale_y_continuous(expand = c(y_expand, y_expand)) +
+    # scale_color_brewer(palette = "Paired") +
+    scale_colour_manual(values = c("lightpink", "royalblue", "plum")) +
     labs(y = y_title, x = NULL, colour = "Ocean group") +
     guides(colour = guide_legend(override.aes = list(shape = 15, size = 10))) +
     # coord_cartesian(expand = F) +
     theme(panel.border = element_rect(colour = "black", fill = NA),
-          axis.title = element_text(size = 14),
-          axis.text = element_text(size = 12),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 16))
+          axis.title = element_text(size = 12),
+          axis.text = element_text(size = 10),
+          legend.title = element_text(size = 14),
+          legend.text = element_text(size = 12))
   # facet_wrap(~name, scales = "free_y")
 }
 
 # Create the panels
-fig_4a <- fig_line_func("count_annual", "Count (n)", c(3.35, 0.45))
-fig_4b <- fig_line_func("duration", "Duration\n(days)", c(62, -5))
-fig_4c <- fig_line_func("intensity_max", "Maximum\nintensity (°C)", c(-0.31, -1.57))
-fig_4d <- fig_line_func("intensity_cumulative", "Cumulative\nintensity (°C days)", c(0, -30))
-fig_4e <- fig_line_func("temp_anom", "Temperature\nanomaly (°C)", c(0.335, -0.32))
+fig_4a <- fig_line_func("count_annual", "Count (n)", c(4.2, -0.3), 0.1)
+fig_4b <- fig_line_func("duration", "Duration\n(days)", c(65, -14), 0.1)
+fig_4c <- fig_line_func("intensity_max", "Maximum\nintensity (°C)", c(0.1, -1.8), 0.1)
+fig_4d <- fig_line_func("intensity_cumulative", "Cumulative\nintensity (°C days)", c(7, -35), 0.12)
+fig_4e <- fig_line_func("temp_anom", "Temperature\nanomaly (°C)", c(0.5, -0.45), 0.07)
 
 # Combine and save
 fig_4 <- ggpubr::ggarrange(fig_4a, fig_4b, fig_4c, fig_4d, fig_4e, ncol = 1, nrow = 5, 
