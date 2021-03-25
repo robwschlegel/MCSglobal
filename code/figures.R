@@ -760,7 +760,7 @@ MCS_total_ice <- filter(MCS_total, name == "category_ice") %>%
   filter(category == "V Ice")
 
 # Stacked barplot of global daily count of MHWs by category
-fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean)) +
+fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)) +
   geom_bar(aes(fill = category), stat = "identity", show.legend = T,
            position = position_stack(reverse = TRUE), width = 1) +
   geom_bar_pattern(data = MCS_total_ice, stat = "identity", show.legend = F,
@@ -770,15 +770,17 @@ fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_prop_mean
   scale_fill_manual("Category", values = MCS_colours) +
   scale_colour_manual(values = c("lightpink", "plum")) +
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
-  scale_y_continuous(limits = c(0, 0.08),
-                     breaks = seq(0.02, 0.06, length.out = 3),
-                     labels = paste0(seq(2, 6, by = 2), "%"),
-                     sec.axis = sec_axis(name = "Average annual MCS days", trans = ~ . + 0,
-                                         breaks = c(0.0137, 0.0274, 0.0411, 0.0548, 0.0685),
-                                         labels = c(5, 10, 15, 20, 25))) +
+  scale_y_continuous(limits = c(0, 27),
+                     breaks = seq(5, 25, length.out = 5),
+  # scale_y_continuous(limits = c(0, 0.08),
+  #                    breaks = seq(0.02, 0.06, length.out = 3),
+                     # labels = paste0(seq(2, 6, by = 2), "%"),
+                     sec.axis = sec_axis(name = "Average daily MCS coverage", trans = ~ . + 0,
+                                         breaks = c(7.3, 14.6, 21.9),
+                                         labels = c("2%", "4%", "6%"))) +
   scale_x_continuous(breaks = seq(1984, 2019, 7)) +
   guides(pattern_colour = FALSE, colour = FALSE) +
-  labs(y = "Average daily MCS coverage", x = NULL) +
+  labs(y = "Average MCS days", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         axis.title = element_text(size = 12),
