@@ -461,11 +461,11 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
     # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
     labs(x = NULL, y = NULL, fill = legend_title) +
-    guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
+    # guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
     # theme_void() +
     theme(panel.border = element_rect(colour = "black", fill = NA),
-          legend.position = "top",
-          legend.title = element_text(size = 14, vjust = 1),
+          # legend.position = "top",
+          legend.title = element_text(size = 14),# vjust = 1),
           legend.text = element_text(size = 12),
           axis.text = element_blank(),
           axis.ticks = element_blank())
@@ -476,7 +476,7 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
       geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
       scale_fill_gradient2(low = slope_low, high = slope_high,
                            breaks = c(q05, q50, q95), midpoint = mid_q,
-                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(">",round(q95, rn))))
     # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir,
     #                      breaks = c(q05, q50, q95),
     #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
@@ -491,9 +491,9 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
       geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
       scale_fill_gradient2(low = slope_low, high = slope_high,
                            breaks = c(q05, q50, q95),
-                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+                           labels = c(paste0("<",round(q05, rn)), round(q50, rn), paste0(">",round(q95, rn))))
   }
-  map_res
+  # map_res
 }
 
 # Create panels
@@ -584,9 +584,10 @@ fig_line_func <- function(var_name, y_title, y_val, y_expand){
     filter(name == var_name) %>% 
     ggplot(aes(x = year, y = value)) +
     # Add lines, points, and lm
+    geom_smooth(aes(colour = ice_group), show.legend = F, method = "lm", 
+                formula = "y ~ x", size = 1.0, alpha = 0.1) +
     geom_line(aes(colour = ice_group), show.legend = F) +
     geom_point(aes(colour = ice_group)) +
-    geom_smooth(aes(colour = ice_group), show.legend = F, method = "lm", formula = "y ~ x", size = 2) +
     # Add slope labels
     geom_label(data = sub_slope, label.size = 2, show.legend = F,
                aes(x = c(1990, 2000, 2010), y = y_val[1], label = label, colour = ice_group)) +
@@ -678,12 +679,13 @@ fig_6a <- MHW_v_MCS_long %>%
   scale_fill_gradient2(low = "blue", mid = "white", high = "red",
                        breaks = c(q05, q50, q95), 
                        labels = c(paste0("  <",round(q05, 2)), round(q50, 2), paste0(round(q95, 2),">")),) +
-  guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-  labs(x = NULL, y = NULL, fill = expression(italic("i"[max,MCS])*" + "*italic("i"[max,MHW]))) +
+  # guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
+  # labs(x = NULL, y = NULL, fill = expression(paste0(italic("i"[maxMCS])," + ",italic("i"[maxMHW])))) +
+  labs(fill = expression(paste("abc \n ab" [reported]))) +
   # theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "top",
-        legend.title = element_text(size = 14, vjust = 1),
+        # legend.position = "top",
+        legend.title = element_text(size = 14),# vjust = 1),
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
@@ -726,12 +728,12 @@ fig_6b <- SSTa_stats %>%
   guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
   labs(x = NULL, y = NULL) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        legend.position = "top",
+        # legend.position = "top",
         legend.title = element_text(size = 14, vjust = 1),
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-fig_6b
+# fig_6b
 
 # Save
 fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 1, nrow = 2, labels = c("A)", "B)"))
