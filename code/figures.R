@@ -7,7 +7,7 @@
 .libPaths(c("~/R-packages", .libPaths()))
 source("code/functions.R")
 library(ggpattern)
-library(ggsci) # Scientific colour palettes
+# library(ggsci) # Scientific colour palettes
 
 
 # Figure 1 ----------------------------------------------------------------
@@ -477,14 +477,14 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
       scale_fill_gradient2(low = slope_low, high = slope_high,
                            breaks = c(q05, q50, q95), midpoint = mid_q,
                            labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
-      # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir,
-      #                      breaks = c(q05, q50, q95),
-      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
-      # scale_fill_gradientn(colours = col_pal,
-      #                      limits = c(q05, q95),
-      #                      breaks = c(q05, q50, q95),
-      #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")),
-      #                      guide = "legend", na.value = NA)
+    # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir,
+    #                      breaks = c(q05, q50, q95),
+    #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
+    # scale_fill_gradientn(colours = col_pal,
+    #                      limits = c(q05, q95),
+    #                      breaks = c(q05, q50, q95),
+    #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")),
+    #                      guide = "legend", na.value = NA)
   } else{
     map_res <- map_res +
       geom_point(data = df_p, size = 0.01, alpha = 0.2) +
@@ -669,24 +669,24 @@ q95 <- quantile(MHW_v_MCS_long$value, 0.95, names = F)
 # Plot max intensity
 fig_6a <- MHW_v_MCS_long %>%
   mutate(value = case_when(value <= q05 ~ q05,
-                             value >= q95 ~ q95,
-                             TRUE ~ value)) %>% 
-    ggplot(aes(x = lon, y = lat)) +
-    geom_tile(aes(fill = value)) +
-    geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
-    coord_quickmap(expand = F, ylim = c(-70, 70)) +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red",
-                         breaks = c(q05, q50, q95), 
-                         labels = c(paste0("  <",round(q05, 2)), round(q50, 2), paste0(round(q95, 2),">")),) +
-    guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-    labs(x = NULL, y = NULL, fill = expression("MCS"*italic(""[imax])*" + MHW"*italic(""[imax]))) +
-    # theme_void() +
-    theme(panel.border = element_rect(colour = "black", fill = NA),
-          legend.position = "top",
-          legend.title = element_text(size = 14, vjust = 1),
-          legend.text = element_text(size = 12),
-          axis.text = element_blank(),
-          axis.ticks = element_blank())
+                           value >= q95 ~ q95,
+                           TRUE ~ value)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_tile(aes(fill = value)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
+  coord_quickmap(expand = F, ylim = c(-70, 70)) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red",
+                       breaks = c(q05, q50, q95), 
+                       labels = c(paste0("  <",round(q05, 2)), round(q50, 2), paste0(round(q95, 2),">")),) +
+  guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
+  labs(x = NULL, y = NULL, fill = expression("MCS"*italic(""[imax])*" + MHW"*italic(""[imax]))) +
+  # theme_void() +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        legend.position = "top",
+        legend.title = element_text(size = 14, vjust = 1),
+        legend.text = element_text(size = 12),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
 fig_6a
 
 # Prep SSTa stats
