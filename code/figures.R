@@ -679,7 +679,7 @@ fig_6a <- MHW_v_MCS_long %>%
                        breaks = c(q05, q50, q95), 
                        labels = c(paste0("  <",round(q05, 2)), round(q50, 2), paste0(round(q95, 2),">")),) +
   guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-  labs(x = NULL, y = NULL, fill = expression("MCS"*italic(""[imax])*" + MHW"*italic(""[imax]))) +
+  labs(x = NULL, y = NULL, fill = expression(italic("i"[max,MCS])*" + "*italic("i"[max,MHW]))) +
   # theme_void() +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top",
