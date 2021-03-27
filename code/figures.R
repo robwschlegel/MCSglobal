@@ -616,10 +616,10 @@ fig_line_func <- function(var_name, y_title, y_val, y_expand){
 }
 
 # Create the panels
-fig_4a <- fig_line_func("count_annual", expression(italic("n")), c(4.2, -0.3), 0.1)
-fig_4b <- fig_line_func("duration", expression(italic("D")), c(81, -14), 0.1)
-fig_4c <- fig_line_func("intensity_max", expression(italic("i"[max])), c(0.1, -1.8), 0.1)
-fig_4d <- fig_line_func("intensity_cumulative", expression(italic("i"[cum])), c(7, -35), 0.12)
+fig_4a <- fig_line_func("count_annual", expression(italic("n")*" (count)"), c(4.9, -0.3), 0.1)
+fig_4b <- fig_line_func("duration", expression(italic("D")*" (days)"), c(81, -14), 0.12)
+fig_4c <- fig_line_func("intensity_max", expression(italic("i"[max])*" ("*degree*"C)"), c(0.1, -1.8), 0.09)
+fig_4d <- fig_line_func("intensity_cumulative", expression(italic("i"[cum])*" ("*degree*"C days)"), c(7, -35), 0.12)
 fig_4e <- fig_line_func("temp_anom", "SSTa (°C)", c(0.5, -0.45), 0.07)
 
 # Combine and save
