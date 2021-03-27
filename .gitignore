@@ -38,6 +38,9 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
+# Manuscript folder
+manuscript/
+
 # Other large files
 metadata/lon_lat_OISST_area.RData
 metadata/lon_lat_OISST_ice.RData
