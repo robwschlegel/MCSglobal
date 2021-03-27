@@ -618,7 +618,7 @@ fig_line_func <- function(var_name, y_title, y_val, y_expand){
 
 # Create the panels
 fig_4a <- fig_line_func("count_annual", expression(italic("n")), c(4.2, -0.3), 0.1)
-fig_4b <- fig_line_func("duration", expression(italic("D")), c(65, -14), 0.1)
+fig_4b <- fig_line_func("duration", expression(italic("D")), c(81, -14), 0.1)
 fig_4c <- fig_line_func("intensity_max", expression(italic("i"[max])), c(0.1, -1.8), 0.1)
 fig_4d <- fig_line_func("intensity_cumulative", expression(italic("i"[cum])), c(7, -35), 0.12)
 fig_4e <- fig_line_func("temp_anom", "SSTa (°C)", c(0.5, -0.45), 0.07)
@@ -961,7 +961,7 @@ fig_S1 <- MCS_cat_count_proc %>%
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
   scale_fill_gradient(low = "white", high = "mediumaquamarine") +
   guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-  labs(x = NULL, y = NULL, fill =  "Ice MCS Proportion ") +
+  labs(x = NULL, y = NULL, fill =  "Ice MCS proportion ") +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         legend.position = "top",
         legend.title = element_text(size = 14, vjust = 1),

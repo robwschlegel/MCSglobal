@@ -1059,23 +1059,17 @@ lolli_plot(SST_event, metric = "intensity_cumulative")
 
 # 12: Global stats by ice area and hemisphere -----------------------------
 
-# Determine near-ice pixels
-ice_pixel_func <- function(lon_step){
-  lon_val <- lon_OISST[lon_step]
-  pixels <- sst_seas_thresh_merge(lon_val, as.Date("1982-01-01")) %>%
-    group_by(lon, lat) %>% 
-    mutate(ice = case_when(min(temp) <= -1.7 ~ TRUE, TRUE ~ FALSE)) %>% 
-    dplyr::select(lon, lat, ice) %>% 
-    distinct()
-  return(pixels)
-}
+# Load event count data per pixel
+# NB: This is created in the ice category vignette
+MCS_cat_count <- readRDS("data/MCS_cat_count.Rds")
 
-# Create ice pixel data.frame
-# registerDoParallel(cores = 50)
-# system.time(
-# lon_lat_OISST_ice <- plyr::ldply(1:1440, ice_pixel_func, .parallel = T)
-# ) # 353 seconds on 50 cores
-# NB: This is too large to host on GitHub
+# Find pixels that have had an "Ice" MCS
+# lon_lat_OISST_ice <- MCS_cat_count %>% 
+#   filter(method == "ice") %>% 
+#   dplyr::select(lon:cat_count) %>% 
+#   pivot_wider(names_from = category, values_from = cat_count) %>% 
+#   mutate(ice = ifelse(!is.na(`V Ice`), TRUE, FALSE)) %>% 
+#   dplyr::select(lon, lat, ice)
 # save(lon_lat_OISST_ice, file = "metadata/lon_lat_OISST_ice.RData")
 load("metadata/lon_lat_OISST_ice.RData")
 
@@ -1133,7 +1127,7 @@ annual_mean_func <- function(lon_step){
 # registerDoParallel(cores = 50)
 # system.time(
 # MCS_annual_mean <- plyr::ldply(1:1440, annual_mean_func, .parallel = T)
-# ) # 336 seconds
+# ) # 350 seconds
 # write_rds(MCS_annual_mean, "data/MCS_annual_mean.Rds")
 MCS_annual_mean <- read_rds("data/MCS_annual_mean.Rds")
 
