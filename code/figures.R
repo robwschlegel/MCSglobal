@@ -454,16 +454,10 @@ fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T){
                            TRUE ~ val)) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_raster(aes(fill = val)) +
-    # geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
-    # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
     labs(x = NULL, y = NULL, title = fig_title, fill = legend_title) +
-    # guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-    # theme_void() +
     theme(panel.border = element_rect(colour = "black", fill = NA),
           plot.title = ggtext::element_markdown(),
-          # legend.position = "top",
-          # title = ggtext::element_markdown(),
           legend.title = element_text(size = 14),# vjust = 1),
           legend.text = element_text(size = 12),
           axis.text = element_blank(),
@@ -476,14 +470,6 @@ fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T){
       scale_fill_gradient2(low = slope_low, high = slope_high,
                            breaks = c(q05, q50, q95), midpoint = mid_q,
                            labels = c(paste0("<",round(q05, rn)), round(q50, rn), paste0(">",round(q95, rn))))
-    # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir,
-    #                      breaks = c(q05, q50, q95),
-    #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
-    # scale_fill_gradientn(colours = col_pal,
-    #                      limits = c(q05, q95),
-    #                      breaks = c(q05, q50, q95),
-    #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")),
-    #                      guide = "legend", na.value = NA)
   } else{
     map_res <- map_res +
       geom_point(data = df_p, size = 0.01, alpha = 0.2) +
@@ -677,14 +663,12 @@ fig_6a <- MHW_v_MCS_long %>%
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
   scale_fill_gradient2(low = "blue", mid = "white", high = "red",
                        breaks = c(q05, q50, q95), 
-                       labels = c(paste0("  <",round(q05, 2)), round(q50, 2), paste0(round(q95, 2),">")),) +
-  # guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-  # labs(x = NULL, y = NULL, fill = expression(paste0(italic("i"[maxMCS])," + ",italic("i"[maxMHW])))) +
-  labs(fill = expression(paste("abc \n ab" [reported]))) +
-  # theme_void() +
+                       labels = c(paste0("<",round(q05, 2)), round(q50, 2), paste0(">",round(q95, 2))),) +
+  labs(fill = "°C", x = NULL, y = NULL,
+       title = "__A)__    Difference in maximum intensities (_i_<sub>*max*,MHW</sub> + _i_<sub>*max*,MCS</sub>)") +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        # legend.position = "top",
-        legend.title = element_text(size = 14),# vjust = 1),
+        plot.title = ggtext::element_markdown(),
+        legend.title = element_text(size = 14),
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
@@ -717,27 +701,25 @@ fig_6b <- SSTa_stats %>%
   geom_raster(aes(fill = value)) +
   geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
   coord_quickmap(expand = F, ylim = c(-70, 70)) +
-  scale_fill_gradient2("SSTa skewness",
-                       low = "blue", mid = "white", high = "red",
-                       # low = pal_jco()(3)[1], mid = pal_jco()(3)[3], high = pal_jco()(3)[2],
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red",
                        breaks = c(skew_quants$q05, skew_quants$q50, skew_quants$q95), 
-                       labels = c(paste0("  <",round(skew_quants$q05, 1)), 
+                       labels = c(paste0("<",round(skew_quants$q05, 1)), 
                                   round(skew_quants$q50, 1), 
-                                  paste0(round(skew_quants$q95, 1),">"))) +
-  guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
-  labs(x = NULL, y = NULL) +
+                                  paste0(">",round(skew_quants$q95, 1)))) +
+  labs(fill = "_α_<sub>*3*</sub>", x = NULL, y = NULL,
+       title = "__B)__    SSTa skewness") +
   theme(panel.border = element_rect(colour = "black", fill = NA),
-        # legend.position = "top",
-        legend.title = element_text(size = 14, vjust = 1),
+        plot.title = ggtext::element_markdown(),
+        legend.title = ggtext::element_markdown(size = 14),
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-# fig_6b
+fig_6b
 
 # Save
-fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 1, nrow = 2, labels = c("A)", "B)"))
-ggsave("figures/fig_6.png", fig_6, height = 7, width = 7)
-ggsave("figures/fig_6.pdf", fig_6, height = 7, width = 7)
+fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 1, nrow = 2)#, labels = c("A)", "B)"))
+ggsave("figures/fig_6.png", fig_6, height = 5, width = 7)
+ggsave("figures/fig_6.pdf", fig_6, height = 5, width = 7)
 
 
 # Figure 7 ----------------------------------------------------------------
@@ -771,9 +753,6 @@ fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
   scale_y_continuous(limits = c(0, 27),
                      breaks = seq(5, 25, length.out = 5),
-  # scale_y_continuous(limits = c(0, 0.08),
-  #                    breaks = seq(0.02, 0.06, length.out = 3),
-                     # labels = paste0(seq(2, 6, by = 2), "%"),
                      sec.axis = sec_axis(name = "Average daily MCS coverage", trans = ~ . + 0,
                                          breaks = c(7.3, 14.6, 21.9),
                                          labels = c("2%", "4%", "6%"))) +
@@ -813,37 +792,6 @@ fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 12))
 # fig_cum_historic
-
-# Stacked barplot of average cumulative MHW days per pixel
-fig_prop_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)) +
-  geom_bar(aes(fill = category), stat = "identity", show.legend = T,
-           position = position_stack(reverse = TRUE), width = 1) +
-  geom_bar_pattern(data = MCS_total_ice, stat = "identity", show.legend = F,
-                   aes(pattern_colour = hemi, colour = hemi), 
-                   pattern = "stripe", pattern_fill = NA, fill = NA, 
-                   pattern_density = 1, pattern_size = 0.6) +
-  scale_fill_manual("Category", values = MCS_colours) +
-  scale_colour_manual(values = c("lightpink", "plum")) +
-  scale_pattern_colour_manual(values = c("lightpink", "plum")) +
-  scale_y_continuous(limits = c(0, 27),
-                     breaks = seq(5, 25, length.out = 5)) +
-  scale_x_continuous(breaks = seq(1984, 2019, 7)) +
-  labs(y = "Average MCS days", x = NULL) +
-  coord_cartesian(expand = F) +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        axis.title = element_text(size = 12),
-        axis.text = element_text(size = 10),
-        legend.position = "none",
-        legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12))
-# fig_prop_historic
-
-# Create the figure title
-# product_title <- "NOAA OISST"
-# min_year <- min(MCS_total_filter$t)
-# max_year <- max(MCS_total_filter$t)
-# fig_title <- paste0("MCS category summaries: ",min_year,"-",max_year,
-#                     "\n",product_title,"; Climatogy period: 1982-2011")
 
 # Stick them together and save
 fig_7 <- ggpubr::ggarrange(fig_count_historic, fig_cum_historic, #fig_prop_historic,
