@@ -199,7 +199,7 @@ AO_pixel <- load_MCS_ALL(c(AO_event_2013_16$lat_centre[1], AO_event_2013_16$lat_
 fig_2_panel_1 <- function(event_sub, lon_breaks, lon_label, lat_breaks, lat_label){
   mf <- event_sub %>% 
     ggplot(aes(x = lon, y = lat)) +
-    geom_tile(aes(fill = category)) +
+    geom_tile(aes(fill = category), show.legend = F) +
     geom_polygon(data = map_base, aes(x = lon, y = lat, group = group)) +
     geom_point(data = event_sub, aes(x = lon_centre, y = lat_centre), shape = 21, fill = "yellow", size = 3) +
     coord_quickmap(expand = F, xlim = range(event_sub$lon), ylim = range(event_sub$lat)) +
@@ -263,7 +263,7 @@ panel_2_FL <- fig_2_panel_2(FL_data, FL_event_2003, "Temp. (°C)")
 panel_2_TS <- fig_2_panel_2(TS_data, TS_event_2008, NULL)
 panel_2_AO <- fig_2_panel_2(AO_data, AO_event_2013_16, NULL)
 panel_2 <- ggpubr::ggarrange(panel_2_FL, panel_2_TS, panel_2_AO, align = "hv", 
-                             common.legend = T, legend = "bottom", ncol = 3, nrow = 1)
+                             common.legend = T, legend = "top", ncol = 3, nrow = 1)
 # panel_2
 
 # Lolliplots of duration
@@ -287,7 +287,7 @@ fig_2_panel_3 <- function(MCS_pixel, event_sub, y_label){
           legend.text = element_text(size = 12))
   # ld
 }
-panel_3_FL <- fig_2_panel_3(FL_pixel, FL_event_2003, expression(italic("D")))
+panel_3_FL <- fig_2_panel_3(FL_pixel, FL_event_2003, expression(italic("D")*" (days)"))
 panel_3_TS <- fig_2_panel_3(TS_pixel, TS_event_2008, NULL)
 panel_3_AO <- fig_2_panel_3(AO_pixel, AO_event_2013_16, NULL)
 # panel_3 <- ggpubr::ggarrange(panel_3_FL, panel_3_TS, panel_3_AO, align = "hv", 
@@ -316,7 +316,7 @@ fig_2_panel_4 <- function(MCS_pixel, event_sub, y_label){
           legend.text = element_text(size = 12))
   # lim
 }
-panel_4_FL <- fig_2_panel_4(FL_pixel, FL_event_2003, expression(italic("i"[max])))
+panel_4_FL <- fig_2_panel_4(FL_pixel, FL_event_2003, expression(italic("i"[max])*" ("*degree*"C)"))
 panel_4_TS <- fig_2_panel_4(TS_pixel, TS_event_2008, NULL)
 panel_4_AO <- fig_2_panel_4(AO_pixel, AO_event_2013_16, NULL)
 # panel_4 <- ggpubr::ggarrange(panel_4_FL, panel_4_TS, panel_4_AO, align = "hv", 
@@ -342,7 +342,7 @@ fig_2_panel_5 <- function(MCS_pixel, event_sub, y_label){
           legend.text = element_text(size = 12))
   # lic
 }
-panel_5_FL <- fig_2_panel_5(FL_pixel, FL_event_2003, expression(italic("i"[cum])))
+panel_5_FL <- fig_2_panel_5(FL_pixel, FL_event_2003, expression(italic("i"[cum])*" ("*degree*"C days)"))
 panel_5_TS <- fig_2_panel_5(TS_pixel, TS_event_2008, NULL)
 panel_5_AO <- fig_2_panel_5(AO_pixel, AO_event_2013_16, NULL)
 # panel_5 <- ggpubr::ggarrange(panel_5_FL, panel_5_TS, panel_5_AO, align = "hv", 
