@@ -458,7 +458,7 @@ fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T){
     labs(x = NULL, y = NULL, title = fig_title, fill = legend_title) +
     theme(panel.border = element_rect(colour = "black", fill = NA),
           plot.title = ggtext::element_markdown(),
-          legend.title = element_text(size = 14),# vjust = 1),
+          legend.title = ggtext::element_markdown(size = 14),
           legend.text = element_text(size = 12),
           axis.text = element_blank(),
           axis.ticks = element_blank())
@@ -482,10 +482,10 @@ fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T){
 }
 
 # Create panels
-fig_3a <- fig_map_func("total_count", "__A)__    Mean MCS annual count (n)", expression(italic("n")))
-fig_3b <- fig_map_func("dur_mean", "__B)__    Mean MCS duration (days)", expression(italic("D")))
-fig_3c <- fig_map_func("i_max_mean", "__C)__    Mean MCS maximum intensity (°C)", expression(italic("i"[max])))
-fig_3d <- fig_map_func("i_cum_mean", "__D)__    Mean MCS cumulative intensity (°C days)", expression(italic("i"[cum])))
+fig_3a <- fig_map_func("total_count", "__A)__    Mean MCS annual count (*n*)", "count")
+fig_3b <- fig_map_func("dur_mean", "__B)__    Mean MCS duration (*D*)", "days")
+fig_3c <- fig_map_func("i_max_mean", "__C)__    Mean MCS maximum intensity (_i_<sub>*max*</sub>)", "°C")
+fig_3d <- fig_map_func("i_cum_mean", "__D)__    Mean MCS cumulative intensity (_i_<sub>*cum*</sub>)", "°C days")
 
 # Combine and save
 fig_3 <- ggpubr::ggarrange(fig_3a, fig_3b, fig_3c, fig_3d, ncol = 1, nrow = 4, 
@@ -620,10 +620,10 @@ ggsave("figures/fig_4.pdf", fig_4, height = 11, width = 7)
 # NB: This requires functions from Figure 4 code section
 
 # Crate panels
-fig_5a <- fig_map_func("total_count", "__A)__    Trends for MCS annual count (n)", expression(italic("n")), mean_plot = F)
-fig_5b <- fig_map_func("dur_mean", "__B)__    Trends for MCS duration (days)", expression(italic("D")), mean_plot = F)
-fig_5c <- fig_map_func("i_max_mean", "__C)__    Trends for MCS maximum intensity (°C)", expression(italic("i"[max])), mean_plot = F)
-fig_5d <- fig_map_func("i_cum_mean", "__D)__    Trends for MCS cumulative intensity (°C days)", expression(italic("i"[cum])), mean_plot = F)
+fig_5a <- fig_map_func("total_count", "__A)__    Trends for MCS annual count (*n*)", "count", mean_plot = F)
+fig_5b <- fig_map_func("dur_mean", "__B)__    Trends for MCS duration (*D*)", "days", mean_plot = F)
+fig_5c <- fig_map_func("i_max_mean", "__C)__    Trends for MCS maximum intensity (_i_<sub>*max*</sub>)", "°C", mean_plot = F)
+fig_5d <- fig_map_func("i_cum_mean", "__D)__    Trends for MCS cumulative intensity (_i_<sub>*cum*</sub>)", "°C days", mean_plot = F)
 
 # Combine and save
 fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, ncol = 1, nrow = 4, 
@@ -718,8 +718,8 @@ fig_6b
 
 # Save
 fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 1, nrow = 2)#, labels = c("A)", "B)"))
-ggsave("figures/fig_6.png", fig_6, height = 5, width = 7)
-ggsave("figures/fig_6.pdf", fig_6, height = 5, width = 7)
+ggsave("figures/fig_6.png", fig_6, height = 5.5, width = 7)
+ggsave("figures/fig_6.pdf", fig_6, height = 5.5, width = 7)
 
 
 # Figure 7 ----------------------------------------------------------------
