@@ -223,12 +223,17 @@ panel_1 <- ggpubr::ggarrange(panel_1_FL, panel_1_TS, panel_1_AO, align = "hv", l
 # panel_1
 
 # The line plot of the event
-fig_2_panel_2 <- function(MCS_data, event_sub, y_label){
+fig_2_panel_2 <- function(MCS_data, event_sub, y_label, ts_spread = 30){
+  if(ts_spread < 30){
+    x_format <- "%d %b %Y"
+  } else{
+    x_format <- "%b %Y"
+  }
   el <- MCS_data$clim_data %>% 
     filter(lon == event_sub$lon_centre[1],
            lat == event_sub$lat_centre[1],
-           t >= event_sub$date_start[1]-30,
-           t <= event_sub$date_end[1]+30) %>% 
+           t >= event_sub$date_start[1]-ts_spread,
+           t <= event_sub$date_end[1]+ts_spread) %>% 
     mutate(diff = thresh - seas,
            thresh_2x = thresh + diff,
            thresh_3x = thresh_2x + diff,
@@ -248,7 +253,7 @@ fig_2_panel_2 <- function(MCS_data, event_sub, y_label){
                         breaks = c("Temperature", "Climatology", "Threshold",
                                    "2x Threshold", "3x Threshold", "4x Threshold")) +
     scale_fill_manual(name = "Category", values = fillCol, breaks = c("Moderate", "Strong", "Severe", "Extreme")) +
-    scale_x_date(date_labels = "%b %Y", expand = c(0, 0)) +
+    scale_x_date(date_labels = x_format, expand = c(0, 0)) +
     guides(colour = guide_legend(override.aes = list(linetype = c("solid", "solid", "solid", "dashed", "dotdash", "dotted"),
                                                      size = c(1, 1, 1, 1, 1, 1)))) +
     labs(y = y_label, x = NULL) +
@@ -260,7 +265,7 @@ fig_2_panel_2 <- function(MCS_data, event_sub, y_label){
   # el
 }
 panel_2_FL <- fig_2_panel_2(FL_data, FL_event_2003, "Temp. (°C)")
-panel_2_TS <- fig_2_panel_2(TS_data, TS_event_2008, NULL)
+panel_2_TS <- fig_2_panel_2(TS_data, TS_event_2008, NULL, 10)
 panel_2_AO <- fig_2_panel_2(AO_data, AO_event_2013_16, NULL)
 panel_2 <- ggpubr::ggarrange(panel_2_FL, panel_2_TS, panel_2_AO, align = "hv", 
                              common.legend = T, legend = "top", ncol = 3, nrow = 1)
