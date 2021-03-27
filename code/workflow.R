@@ -666,6 +666,8 @@ MCS_trend_calc <- function(lon_step){
     mutate(slope = round(slope, 4), 
            p.value = round(p.value, 4))
   )
+  # Some slopes are flat (all 0's) so can't have a p-value
+  # We replace the NaN values here with p = 1
   MCS_metric_trends[is.na(MCS_metric_trends)] <- 1
   
   # Annual category count summaries 
@@ -709,6 +711,8 @@ MCS_trend_calc <- function(lon_step){
     mutate(slope = round(slope, 4), 
            p.value = round(p.value, 4))
   )
+  # Some slopes are flat (all 0's) so can't have a p-value
+  # We replace the NaN values here with p = 1
   MCS_count_trends[is.na(MCS_count_trends)] <- 1
   
   # Final data.frame and save

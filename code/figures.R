@@ -371,13 +371,6 @@ ggsave("figures/fig_2.pdf", fig_2, height = 14, width = 15)
 # Figure 3 ----------------------------------------------------------------
 # Maps of the mean metrics
 
-
-# Change colour bars to discrete steps
-# Change land to grey
-# Use blue and yellow for the contrasting changes in Metrics
-# Or light yellow to dark blue
-
-
 # Load all results into one brick
 MCS_count_trend <- readRDS("data/MCS_count_trend.Rds")
 unique(MCS_count_trend$name)
@@ -390,7 +383,7 @@ MCS_sig <- MCS_count_trend %>%
          lat %in% seq(-78.375, 89.375, 1))
 
 # Figures of trends and annual statesx
-fig_map_func <- function(var_name, legend_title, mean_plot = T){
+fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T){
   
   # Determine which column to plot
   if(mean_plot){
@@ -424,7 +417,6 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
   if(var_name == "total_count") {
     viridis_choice <- "A"
     vir_dir <- 1
-    # col_pal <- viridis::magma(n = 8, direction = 1)
     slope_low <- "lightgoldenrod"
     slope_high <- "cadetblue4"
     rn <- 1
@@ -465,11 +457,13 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
     # geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
     # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir) +
     coord_quickmap(expand = F, ylim = c(-70, 70)) +
-    labs(x = NULL, y = NULL, fill = legend_title) +
+    labs(x = NULL, y = NULL, title = fig_title, fill = legend_title) +
     # guides(fill = guide_colourbar(barwidth = grid::unit(3, units = "inches"))) +
     # theme_void() +
     theme(panel.border = element_rect(colour = "black", fill = NA),
+          plot.title = ggtext::element_markdown(),
           # legend.position = "top",
+          # title = ggtext::element_markdown(),
           legend.title = element_text(size = 14),# vjust = 1),
           legend.text = element_text(size = 12),
           axis.text = element_blank(),
@@ -481,7 +475,7 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
       geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
       scale_fill_gradient2(low = slope_low, high = slope_high,
                            breaks = c(q05, q50, q95), midpoint = mid_q,
-                           labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(">",round(q95, rn))))
+                           labels = c(paste0("<",round(q05, rn)), round(q50, rn), paste0(">",round(q95, rn))))
     # scale_fill_viridis_c(option = viridis_choice, direction = vir_dir,
     #                      breaks = c(q05, q50, q95),
     #                      labels = c(paste0("  <",round(q05, rn)), round(q50, rn), paste0(round(q95, rn),">")))
@@ -502,16 +496,16 @@ fig_map_func <- function(var_name, legend_title, mean_plot = T){
 }
 
 # Create panels
-fig_3a <- fig_map_func("total_count", expression(italic("n")))
-fig_3b <- fig_map_func("dur_mean", expression(italic("D")))
-fig_3c <- fig_map_func("i_max_mean", expression(italic("i"[max])))
-fig_3d <- fig_map_func("i_cum_mean", expression(italic("i"[cum])))
+fig_3a <- fig_map_func("total_count", "__A)__    Mean MCS annual count (n)", expression(italic("n")))
+fig_3b <- fig_map_func("dur_mean", "__B)__    Mean MCS duration (days)", expression(italic("D")))
+fig_3c <- fig_map_func("i_max_mean", "__C)__    Mean MCS maximum intensity (°C)", expression(italic("i"[max])))
+fig_3d <- fig_map_func("i_cum_mean", "__D)__    Mean MCS cumulative intensity (°C)", expression(italic("i"[cum])))
 
 # Combine and save
 fig_3 <- ggpubr::ggarrange(fig_3a, fig_3b, fig_3c, fig_3d, ncol = 1, nrow = 4, 
-                           align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("figures/fig_3.png", fig_3, height = 14, width = 7)
-ggsave("figures/fig_3.pdf", fig_3, height = 14, width = 7)
+                           align = "hv")#, labels = c("A)", "B)", "C)", "D)"))
+ggsave("figures/fig_3.png", fig_3, height = 11, width = 7)
+ggsave("figures/fig_3.pdf", fig_3, height = 11, width = 7)
 
 
 # Figure 4 ----------------------------------------------------------------
@@ -640,16 +634,16 @@ ggsave("figures/fig_4.pdf", fig_4, height = 11, width = 7)
 # NB: This requires functions from Figure 4 code section
 
 # Crate panels
-fig_5a <- fig_map_func("total_count", expression(italic("n")), mean_plot = F)
-fig_5b <- fig_map_func("dur_mean", expression(italic("D")), mean_plot = F)
-fig_5c <- fig_map_func("i_max_mean", expression(italic("i"[max])), mean_plot = F)
-fig_5d <- fig_map_func("i_cum_mean", expression(italic("i"[cum])), mean_plot = F)
+fig_5a <- fig_map_func("total_count", "__A)__    Trends for MCS annual count (n)", expression(italic("n")), mean_plot = F)
+fig_5b <- fig_map_func("dur_mean", "__B)__    Trends for MCS duration (days)", expression(italic("D")), mean_plot = F)
+fig_5c <- fig_map_func("i_max_mean", "__C)__    Trends for MCS maximum intensity (°C)", expression(italic("i"[max])), mean_plot = F)
+fig_5d <- fig_map_func("i_cum_mean", "__D)__    Trends for MCS cumulative intensity (°C)", expression(italic("i"[cum])), mean_plot = F)
 
 # Combine and save
 fig_5 <- ggpubr::ggarrange(fig_5a, fig_5b, fig_5c, fig_5d, ncol = 1, nrow = 4, 
-                           align = "hv", labels = c("A)", "B)", "C)", "D)"))
-ggsave("figures/fig_5.png", fig_5, height = 14, width = 7)
-ggsave("figures/fig_5.pdf", fig_5, height = 14, width = 7)
+                           align = "hv")#, labels = c("A)", "B)", "C)", "D)"))
+ggsave("figures/fig_5.png", fig_5, height = 11, width = 7)
+ggsave("figures/fig_5.pdf", fig_5, height = 11, width = 7)
 
 
 # Figure 6 ----------------------------------------------------------------
