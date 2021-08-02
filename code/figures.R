@@ -569,7 +569,7 @@ fig_line_func <- function(var_name, y_title, y_val, y_expand){
     filter(name == var_name) %>% 
     ggplot(aes(x = year, y = value)) +
     # Add lines, points, and lm
-    geom_smooth(aes(colour = ice_group), show.legend = F, method = "lm", 
+    geom_smooth(aes(colour = ice_group), fill = "grey20", show.legend = F, method = "lm", 
                 formula = "y ~ x", size = 0.5, alpha = 0.2) +
     geom_line(aes(colour = ice_group), show.legend = F) +
     geom_point(aes(colour = ice_group)) +
