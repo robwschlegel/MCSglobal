@@ -706,7 +706,7 @@ fig_6b <- SSTa_stats %>%
                        labels = c(paste0("<",round(skew_quants$q05, 1)), 
                                   round(skew_quants$q50, 1), 
                                   paste0(">",round(skew_quants$q95, 1)))) +
-  labs(fill = "_α_<sub>*3*</sub>", x = NULL, y = NULL,
+  labs(fill = NULL, x = NULL, y = NULL,
        title = "__B)__    SSTa skewness") +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         plot.title = ggtext::element_markdown(),
