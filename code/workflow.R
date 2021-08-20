@@ -628,22 +628,32 @@ MCS_trend_calc <- function(lon_step){
   MCS_metric <- MCS_event %>% 
     group_by(lon, lat, year) %>% 
     summarise(count = n(),
+              dur_median = median(duration, na.rm = T),
               dur_mean = mean(duration, na.rm = T),
               dur_sum = sum(duration, na.rm = T),
+              i_median = median(intensity_mean, na.rm = T),
               i_mean = mean(intensity_mean, na.rm = T),
+              i_max_median = median(intensity_max, na.rm = T),
               i_max_mean = mean(intensity_max, na.rm = T),
               i_max_min = min(intensity_max, na.rm = T),
+              i_cum_median = median(intensity_cumulative, na.rm = T),
               i_cum_mean = mean(intensity_cumulative, na.rm = T),
               i_cum_sum = sum(intensity_cumulative, na.rm = T),
+              onset_median = median(rate_onset, na.rm = T),
               onset_mean = mean(rate_onset, na.rm = T),
               onset_min = min(rate_onset, na.rm = T),
+              decline_median = median(rate_decline, na.rm = T),
               decline_mean = mean(rate_decline, na.rm = T),
               decline_min = min(rate_decline, na.rm = T),
-              p_moderate = mean(p_moderate, na.rm = T),
-              p_strong = mean(p_strong, na.rm = T),
-              p_severe = mean(p_severe, na.rm = T),
-              p_extreme = mean(p_extreme, na.rm = T)) %>% 
-    filter(p_extreme >= 0) %>% 
+              p_moderate_median = median(p_moderate, na.rm = T),
+              p_moderate_mean = mean(p_moderate, na.rm = T),
+              p_strong_median = median(p_strong, na.rm = T),
+              p_strong_mean = mean(p_strong, na.rm = T),
+              p_severe_median = median(p_severe, na.rm = T),
+              p_severe_mean = mean(p_severe, na.rm = T),
+              p_extreme_median = median(p_extreme, na.rm = T),
+              p_extreme_mean = mean(p_extreme, na.rm = T)) %>% 
+    filter(p_extreme_mean >= 0) %>% 
     mutate_if(is.numeric, round, 4) %>% 
     pivot_longer(cols = c(-lon, -lat, -year))
   ))
@@ -716,25 +726,35 @@ MCS_trend_calc <- function(lon_step){
   MCS_count_trends[is.na(MCS_count_trends)] <- 1
   
   # Final data.frame and save
-  MCS_count_trend <- rbind(MCS_metric, MCS_count) %>% 
+  MCS_count_trend_mean <- rbind(MCS_metric, MCS_count) %>% 
     dplyr::select(-year) %>% 
     group_by(lon, lat, name) %>%
     summarise_if(is.numeric, mean, na.rm = T) %>% 
     left_join(rbind(MCS_metric_trends, MCS_count_trends), by = c("lon", "lat", "name")) %>% 
-    mutate(value = round(value, 4))
+    mutate(value = round(value, 4),
+           final_stat = "mean")
+  MCS_count_trend_median <- rbind(MCS_metric, MCS_count) %>% 
+    dplyr::select(-year) %>% 
+    group_by(lon, lat, name) %>%
+    summarise_if(is.numeric, median, na.rm = T) %>% 
+    left_join(rbind(MCS_metric_trends, MCS_count_trends), by = c("lon", "lat", "name")) %>% 
+    mutate(value = round(value, 4),
+           final_stat = "median")
+  MCS_count_trend <- rbind(MCS_count_trend_mean, MCS_count_trend_median)
+  return(MCS_count_trend)
   # saveRDS(MCS_count_trend, paste0("data/MCS_count_trend_",lon_step_pad,".Rds"))
 }
 
 # Run one
 # system.time(
 #   MCS_trend_calc(1)
-# ) # 49 seconds
+# ) # 70 seconds
 
 # Run all
-# registerDoParallel(cores = 50)
-# system.time(MCS_count_trend <- plyr::ldply(1:1440, MCS_trend_calc, .parallel = T, .paropts = c(.inorder = F))) # 2737 seconds
+registerDoParallel(cores = 50)
+system.time(MCS_count_trend <- plyr::ldply(1:1440, MCS_trend_calc, .parallel = T, .paropts = c(.inorder = F))) # 4147seconds
 # NB: This file is too large to host on GitHub
-# saveRDS(MCS_count_trend, "data/MCS_count_trend.Rds")
+saveRDS(MCS_count_trend, "data/MCS_count_trend.Rds")
 
 # Figures of trends and annual states
 var_mean_trend_fig <- function(var_name){
@@ -742,7 +762,8 @@ var_mean_trend_fig <- function(var_name){
   # Basic filter
   df <- MCS_count_trend %>% 
     filter(name == var_name,
-           lat >= -70, lat <= 70)
+           lat >= -70, lat <= 70,
+           final_stat == "mean")
   
   # Significant results
   df_p <- df %>% 
@@ -808,7 +829,7 @@ plyr::l_ply(unique(MCS_count_trend$name), var_mean_trend_fig, .parallel = T)
 
 # Global average trends
 MCS_count_trend %>%
-  filter(name %in% c("total_count", "dur_mean", "i_max_mean", "i_cum_mean")) %>%
+  filter(name %in% c("total_count", "dur_mean", "i_max_mean", "i_cum_mean"), final_stat == "Mean") %>%
   group_by(name) %>%
   summarise(mean_slope = mean(slope, na.rm = T),
             median_slope = median(slope, na.rm = T))

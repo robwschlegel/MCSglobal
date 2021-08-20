@@ -379,11 +379,12 @@ unique(MCS_count_trend$name)
 # Filter down pixels for better plotting
 MCS_sig <- MCS_count_trend %>% 
   filter(p.value <= 0.05,
+         final_stat == "mean",
          lon %in% seq(-179.875, 179.875, 1),
          lat %in% seq(-78.375, 89.375, 1))
 
 # Figures of trends and annual statesx
-fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T){
+fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T, stat_choice = "mean"){
   
   # Determine which column to plot
   if(mean_plot){
@@ -395,6 +396,7 @@ fig_map_func <- function(var_name, fig_title, legend_title, mean_plot = T){
   # Basic filter
   df <- MCS_count_trend %>% 
     filter(name == var_name,
+           final_stat == stat_choice,
            lat >= -70, lat <= 70) %>% 
     pivot_longer(cols = c(value, slope), 
                  names_to = "type", values_to = "val") %>% 
@@ -920,4 +922,25 @@ fig_S1
 # Save
 ggsave("figures/fig_S1.png", fig_S1, height = 3.5, width = 7)
 ggsave("figures/fig_S1.pdf", fig_S1, height = 3.5, width = 7)
+
+
+# Figure S2 ---------------------------------------------------------------
+# Same as Figure 3 but median values rather than mean
+# NB: Must first run the code in the Figure 3 section
+
+# Create panels
+fig_S2a <- fig_map_func("total_count", "__A)__    Median MCS annual count (*n*)", "count", stat_choice = "median")
+fig_S2b <- fig_map_func("dur_mean", "__B)__    Median MCS duration (*D*)", "days", stat_choice = "median")
+fig_S2c <- fig_map_func("i_max_mean", "__C)__    Median MCS maximum intensity (_i_<sub>*max*</sub>)", "°C", stat_choice = "median")
+fig_S2d <- fig_map_func("i_cum_mean", "__D)__    Median MCS cumulative intensity (_i_<sub>*cum*</sub>)", "°C days", stat_choice = "median")
+
+# Combine and save
+fig_S2 <- ggpubr::ggarrange(fig_S2a, fig_S2b, fig_S2c, fig_S2d, ncol = 1, nrow = 4,
+                            align = "hv")#, labels = c("A)", "B)", "C)", "D)"))
+ggsave("figures/fig_S2.png", fig_S2, height = 11, width = 7)
+ggsave("figures/fig_S2.pdf", fig_S2, height = 11, width = 7)
+
+
+# Figure S3 ---------------------------------------------------------------
+# Same as Figure 6 but median values rather than mean
 
