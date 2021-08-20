@@ -984,6 +984,6 @@ fig_S3 <- MHW_v_MCS_long %>%
 fig_S3
 
 # Save
-ggsave("figures/fig_S3.png", fig_S3, height = 2.5, width = 7)
-ggsave("figures/fig_S3.pdf", fig_S3, height = 2.5, width = 7)
+ggsave("figures/fig_S3.png", fig_S3, height = 3, width = 7)
+ggsave("figures/fig_S3.pdf", fig_S3, height = 3, width = 7)
 
