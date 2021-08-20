@@ -642,9 +642,9 @@ MHW_v_MCS <- readRDS("data/MHW_v_MCS.Rds")
 
 # Melt long for easier plotting
 MHW_v_MCS_long <- MHW_v_MCS %>% 
-  pivot_longer(cols = count:i_cum, names_to = "name", values_to = "value") %>% 
+  pivot_longer(cols = count:i_cum_mean, names_to = "name", values_to = "value") %>% 
   na.omit() %>% 
-  filter(name == "i_max",
+  filter(name == "i_max_mean",
          lat >= -70, lat <= 70)
 
 # Find 10th and 90th quantiles to round off tails for plotting
@@ -943,4 +943,47 @@ ggsave("figures/fig_S2.pdf", fig_S2, height = 11, width = 7)
 
 # Figure S3 ---------------------------------------------------------------
 # Same as Figure 6 but median values rather than mean
+
+# Load the MCS vs. MHW results
+MHW_v_MCS <- readRDS("data/MHW_v_MCS.Rds")
+
+# Melt long for easier plotting
+MHW_v_MCS_long <- MHW_v_MCS %>% 
+  pivot_longer(cols = count:i_cum_mean, names_to = "name", values_to = "value") %>% 
+  na.omit() %>% 
+  filter(name == "i_max_median",
+         lat >= -70, lat <= 70)
+
+# Find 10th and 90th quantiles to round off tails for plotting
+q05 <- quantile(MHW_v_MCS_long$value, 0.05, names = F)
+q10 <- quantile(MHW_v_MCS_long$value, 0.1, names = F)
+q50 <- quantile(MHW_v_MCS_long$value, 0.5, names = F)
+q90 <- quantile(MHW_v_MCS_long$value, 0.9, names = F)
+q95 <- quantile(MHW_v_MCS_long$value, 0.95, names = F)
+
+# Plot max intensity
+fig_S3 <- MHW_v_MCS_long %>%
+  mutate(value = case_when(value <= q05 ~ q05,
+                           value >= q95 ~ q95,
+                           TRUE ~ value)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_tile(aes(fill = value)) +
+  geom_polygon(data = map_base, aes(x = lon, y = lat, group = group), fill = "grey70") +
+  coord_quickmap(expand = F, ylim = c(-70, 70)) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red",
+                       breaks = c(q05, q50, q95), 
+                       labels = c(paste0("<",round(q05, 2)), round(q50, 2), paste0(">",round(q95, 2))),) +
+  labs(fill = "°C", x = NULL, y = NULL,
+       title = "Difference in median maximum intensities (_i_<sub>*max*,MHW</sub> + _i_<sub>*max*,MCS</sub>)") +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        plot.title = ggtext::element_markdown(),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+fig_S3
+
+# Save
+ggsave("figures/fig_S3.png", fig_S3, height = 2.5, width = 7)
+ggsave("figures/fig_S3.pdf", fig_S3, height = 2.5, width = 7)
 

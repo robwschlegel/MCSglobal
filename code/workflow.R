@@ -846,7 +846,7 @@ MHW_v_MCS_func <- function(lon_row){
     dplyr::select(lon, lat, duration, intensity_mean:intensity_cumulative) %>% 
     group_by(lon, lat) %>% 
     mutate(count = n()) %>% 
-    summarise_all("mean", .groups = "drop")
+    summarise_all(c("mean", "median"), .groups = "drop")
   
   # Load and prep MCS data
   MCS_mean <- load_MCS_event_sub(MCS_lon_files[lon_row], lat_range = c(-90, 90),
@@ -854,21 +854,25 @@ MHW_v_MCS_func <- function(lon_row){
     dplyr::select(lon, lat, duration, intensity_mean, intensity_max, intensity_cumulative) %>% 
     group_by(lon, lat) %>% 
     mutate(count = n()) %>% 
-    summarise_all("mean", .groups = "drop")
+    summarise_all(c("mean", "median"), .groups = "drop")
   
   # Subtract MCS from MHW
   MHW_v_MCS <- left_join(MHW_mean, MCS_mean, by = c("lon", "lat")) %>% 
-    mutate(count = count.x - count.y,
-           dur = round(duration.x - duration.y, 2),
-           i_mean = round(intensity_mean.x - abs(intensity_mean.y), 2),
-           i_max = round(intensity_max.x - abs(intensity_max.y), 2),
-           i_cum = round(intensity_cumulative.x - abs(intensity_cumulative.y), 2)) %>% 
-    dplyr::select(lon, lat, count:i_cum)
+    mutate(count = count_mean.x - count_mean.y, # Mean and median are the same for count
+           dur_median = round(duration_median.x - duration_median.y, 2),
+           dur_mean = round(duration_mean.x - duration_mean.y, 2),
+           i_mean_median = round(intensity_mean_median.x - abs(intensity_mean_median.y), 2),
+           i_mean_mean = round(intensity_mean_mean.x - abs(intensity_mean_mean.y), 2),
+           i_max_median = round(intensity_max_median.x - abs(intensity_max_median.y), 2),
+           i_max_mean = round(intensity_max_mean.x - abs(intensity_max_mean.y), 2),
+           i_cum_median = round(intensity_cumulative_median.x - abs(intensity_cumulative_median.y), 2),
+           i_cum_mean = round(intensity_cumulative_mean.x - abs(intensity_cumulative_mean.y), 2)) %>% 
+    dplyr::select(lon, lat, count:i_cum_mean)
   return(MHW_v_MCS)
 }
 
 registerDoParallel(cores = 50)
-system.time(MHW_v_MCS <- plyr::ldply(1:1440, MHW_v_MCS_func, .parallel = T, .paropts = c(.inorder = F))) # 104 seconds
+system.time(MHW_v_MCS <- plyr::ldply(1:1440, MHW_v_MCS_func, .parallel = T, .paropts = c(.inorder = F))) # 252 seconds
 saveRDS(MHW_v_MCS, "data/MHW_v_MCS.Rds")
 
 
