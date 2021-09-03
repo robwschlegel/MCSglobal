@@ -742,6 +742,13 @@ MCS_total_filter <- filter(MCS_total, name == "category") %>%
 MCS_total_ice <- filter(MCS_total, name == "category_ice") %>% 
   filter(category == "V Ice")
 
+MCS_colours_noice <- c(
+  "I Moderate" = MCS_palette[1],
+  "II Strong" = MCS_palette[2],
+  "III Severe" = MCS_palette[3],
+  "IV Extreme" = MCS_palette[4]
+)
+
 # Stacked barplot of global daily count of MHWs by category
 fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)) +
   geom_bar(aes(fill = category), stat = "identity", show.legend = T,
@@ -750,7 +757,7 @@ fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)
                    aes(pattern_colour = hemi, colour = hemi), 
                    pattern = "stripe", pattern_fill = NA, fill = NA, 
                    pattern_density = 1, pattern_size = 0.6) +
-  scale_fill_manual("Category", values = MCS_colours) +
+  scale_fill_manual("Category", values = MCS_colours_noice) +
   scale_colour_manual(values = c("lightpink", "plum")) +
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
   scale_y_continuous(limits = c(0, 27),
@@ -777,7 +784,7 @@ fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)
                    aes(pattern_colour = hemi, colour = hemi), 
                    pattern = "stripe", pattern_fill = NA, fill = NA, 
                    pattern_density = 1, pattern_size = 0.6) +
-  scale_fill_manual("Category", values = MCS_colours) +
+  scale_fill_manual("Category", values = MCS_colours_noice) +
   scale_colour_manual(values = c("lightpink", "plum")) +
   scale_pattern_colour_manual(values = c("lightpink", "plum")) +
   scale_y_continuous(position = "right", 
