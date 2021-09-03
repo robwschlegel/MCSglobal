@@ -667,14 +667,14 @@ fig_6a <- MHW_v_MCS_long %>%
                        breaks = c(q05, q50, q95), 
                        labels = c(paste0("<",round(q05, 2)), round(q50, 2), paste0(">",round(q95, 2))),) +
   labs(fill = "°C", x = NULL, y = NULL,
-       title = "__A)__    Difference in maximum intensities (_i_<sub>*max*,MHW</sub> + _i_<sub>*max*,MCS</sub>)") +
+       title = "__A)__    Sum of maximum intensities (_i_<sub>*max*,MHW</sub> + _i_<sub>*max*,MCS</sub>)") +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         plot.title = ggtext::element_markdown(),
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-fig_6a
+# fig_6a
 
 # Prep SSTa stats
 SSTa_stats <- readRDS("data/SSTa_stats.Rds") %>% 
@@ -716,7 +716,7 @@ fig_6b <- SSTa_stats %>%
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-fig_6b
+# fig_6b
 
 # Save
 fig_6 <- ggpubr::ggarrange(fig_6a, fig_6b, ncol = 1, nrow = 2)#, labels = c("A)", "B)"))
@@ -974,14 +974,14 @@ fig_S3 <- MHW_v_MCS_long %>%
                        breaks = c(q05, q50, q95), 
                        labels = c(paste0("<",round(q05, 2)), round(q50, 2), paste0(">",round(q95, 2))),) +
   labs(fill = "°C", x = NULL, y = NULL,
-       title = "Difference in median maximum intensities (_i_<sub>*max*,MHW</sub> + _i_<sub>*max*,MCS</sub>)") +
+       title = "Sum of median maximum intensities (_i_<sub>*max*,MHW</sub> + _i_<sub>*max*,MCS</sub>)") +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         plot.title = ggtext::element_markdown(),
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 12),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-fig_S3
+# fig_S3
 
 # Save
 ggsave("figures/fig_S3.png", fig_S3, height = 3, width = 7)
