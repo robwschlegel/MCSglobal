@@ -746,7 +746,9 @@ MCS_colours_noice <- c(
   "I Moderate" = MCS_palette[1],
   "II Strong" = MCS_palette[2],
   "III Severe" = MCS_palette[3],
-  "IV Extreme" = MCS_palette[4]
+  "IV Extreme" = MCS_palette[4],
+  "N Ice" = "lightpink",
+  "S Ice" = "plum"
 )
 
 # Stacked barplot of global daily count of MHWs by category
@@ -766,14 +768,14 @@ fig_count_historic <- ggplot(MCS_total_filter, aes(x = t, y = cat_area_cum_prop)
                                          breaks = c(7.3, 14.6, 21.9),
                                          labels = c("2%", "4%", "6%"))) +
   scale_x_continuous(breaks = seq(1984, 2019, 7)) +
-  guides(pattern_colour = FALSE, colour = FALSE) +
+  guides(pattern_colour = FALSE, colour = FALSE, fill = guide_legend(nrow = 1, byrow = TRUE)) +
   labs(y = "Average MCS days", x = NULL) +
   coord_cartesian(expand = F) +
   theme(panel.border = element_rect(colour = "black", fill = NA),
         axis.title = element_text(size = 12),
         axis.text = element_text(size = 10),
-        legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12))
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10))
 # fig_count_historic
 
 # Stacked barplot of cumulative percent of ocean affected by MHWs
@@ -798,8 +800,8 @@ fig_cum_historic <- ggplot(MCS_total_filter, aes(x = t, y = first_area_cum_prop)
         axis.title = element_text(size = 12),
         axis.text = element_text(size = 10),
         legend.position = "none",
-        legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12))
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10))
 # fig_cum_historic
 
 # Stick them together and save
