@@ -92,17 +92,15 @@ plyr::l_ply(1:1440, .fun = MCS_calc, .parallel = T)
 # Function for loading a cat_lon slice and extracting a single day of values
 # testers...
 # lon_step <- 1
-# date_range <- c(as.Date("2019-11-01"), as.Date("2020-01-07"))
-# date_range <- c(as.Date("1982-01-01"), as.Date("1982-12-31"))
 cat_lon_proc <- function(lon_step){
   
   # Get file name
-  event_file <- MCS_event_files[lon_step]
+  MCS_file <- MCS_files[lon_step]
   lon_step_pad <- str_pad(lon_step, width = 4, pad = "0", side = "left")
   print(paste("Began run", lon_step_pad, "at", Sys.time()))
   
   # The original MCS methodology
-  cat_sub <- readRDS(event_file) %>%
+  cat_sub <- readRDS(MCS_file) %>%
     dplyr::select(-event, -cat_correct) %>% 
     unnest(cols = cat) %>% 
     filter(row_number() %% 2 == 1) %>% 
@@ -111,7 +109,7 @@ cat_lon_proc <- function(lon_step){
     ungroup()
   
   # Those corrected for the 1.8C freezing point
-  cat_correct_sub <- readRDS(event_file) %>%
+  cat_correct_sub <- readRDS(MCS_file) %>%
     dplyr::select(-event, -cat) %>% 
     unnest(cols = cat_correct) %>% 
     filter(row_number() %% 2 == 1) %>% 
@@ -120,7 +118,7 @@ cat_lon_proc <- function(lon_step){
     ungroup()
   
   # The categories corrected for near-ice events
-  cat_ice_ref <- readRDS(event_file)  %>%
+  cat_ice_ref <- readRDS(MCS_file)  %>%
     dplyr::select(-cat, -cat_correct) %>% 
     unnest(cols = event) %>% 
     filter(row_number() %% 2 == 1) %>% 
@@ -210,6 +208,28 @@ cat_clim_global_daily(date_range = c(as.Date("1982-01-01"), as.Date("1990-12-31"
 cat_clim_global_daily(date_range = c(as.Date("1991-01-01"), as.Date("2000-12-31"))); gc()
 cat_clim_global_daily(date_range = c(as.Date("2001-01-01"), as.Date("2010-12-31"))); gc()
 cat_clim_global_daily(date_range = c(as.Date("2011-01-01"), as.Date("2020-12-31"))); gc()
+
+# Function for creating event only data files
+event_proc <- function(lon_step){
+    
+  # Get file name
+  lon_step_pad <- str_pad(lon_step, width = 4, pad = "0", side = "left")
+  print(paste("Began run", lon_step_pad, "at", Sys.time()))
+  
+  # Extract event data and reduce to MHWapp standard
+  res <- MCS_event(readRDS(MCS_files[lon_step])) %>% 
+    ungroup() %>% 
+    dplyr::select(lon, lat, event_no, duration:intensity_max, intensity_cumulative) %>%
+    mutate_all(round, 3)
+  
+  # Save and exit
+  saveRDS(res, paste0("../data/event/MCS/MCS.event.",lon_step_pad,".Rda"))
+  rm(res); gc()
+}
+
+# Run them
+registerDoParallel(cores = 50)
+plyr::l_ply(1:1440, event_proc, .parallel = T)
 
 
 # 4: Annual summaries -----------------------------------------------------

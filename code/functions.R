@@ -99,9 +99,10 @@ lon_lat_OISST <- base::expand.grid(lon_OISST, lat_OISST) %>%
 
 # File locations
 OISST_files <- dir("../data/OISST", pattern = "avhrr-only", full.names = T)
-MCS_event_files <- dir("../data/MCS", full.names = T)
+MCS_files <- dir("../data/MCS", full.names = T)
 MCS_lon_files <- dir("../data/cat_lon/MCS", full.names = T)
 MCS_cat_files <- dir("../data/cat_clim/MCS", full.names = T, recursive = T)
+MCS_event_files <- dir("../data/event", full.names = T, pattern = "MCS")
 MCS_count_trend_files <- dir("annual_summary_MCS", pattern = "count_trend", full.names = T)
 seas_thresh_files <- dir("../data/thresh", pattern = "MHW.seas.thresh.", full.names = T)
 
