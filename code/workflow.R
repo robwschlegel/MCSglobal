@@ -158,7 +158,7 @@ cat_lon_proc <- function(lon_step){
 
 # Run them
 registerDoParallel(cores = 50)
-# plyr::l_ply(1:1440, cat_lon_proc, .parallel = T)
+plyr::l_ply(1:1440, cat_lon_proc, .parallel = T)
 
 # Function for loading a cat_lon slice and extracting a single day of values
 # testers...
@@ -171,7 +171,6 @@ load_sub_cat_clim <- function(cat_lon_file, date_range){
   rm(cat_clim)
   return(cat_clim_sub)
 }
-
 
 # Function for saving daily global cat files
 # tester...
