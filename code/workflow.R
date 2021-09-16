@@ -91,40 +91,42 @@ plyr::l_ply(1:1440, .fun = MCS_calc, .parallel = T)
 
 # Function for loading a cat_lon slice and extracting a single day of values
 # testers...
-# cat_lon_file <- MCS_lon_files[1]
+# lon_step <- 1
 # date_range <- c(as.Date("2019-11-01"), as.Date("2020-01-07"))
 # date_range <- c(as.Date("1982-01-01"), as.Date("1982-12-31"))
-load_sub_cat_clim <- function(cat_lon_file, date_range){
+cat_lon_proc <- function(lon_step){
+  
+  # Get file name
+  event_file <- MCS_event_files[lon_step]
+  lon_step_pad <- str_pad(lon_step, width = 4, pad = "0", side = "left")
+  print(paste("Began run", lon_step_pad, "at", Sys.time()))
   
   # The original MCS methodology
-  cat_sub <- readRDS(cat_lon_file) %>%
+  cat_sub <- readRDS(event_file) %>%
     dplyr::select(-event, -cat_correct) %>% 
     unnest(cols = cat) %>% 
     filter(row_number() %% 2 == 1) %>% 
     filter(nrow(cat$climatology) > 0) %>%
     unnest(cols = cat) %>% 
-    ungroup() %>% 
-    filter(t >= date_range[1], t <= date_range[2])
+    ungroup()
   
   # Those corrected for the 1.8C freezing point
-  cat_correct_sub <- readRDS(cat_lon_file) %>%
+  cat_correct_sub <- readRDS(event_file) %>%
     dplyr::select(-event, -cat) %>% 
     unnest(cols = cat_correct) %>% 
     filter(row_number() %% 2 == 1) %>% 
     filter(nrow(cat_correct$climatology) > 0) %>%
     unnest(cols = cat_correct) %>% 
-    ungroup() %>% 
-    filter(t >= date_range[1], t <= date_range[2])
+    ungroup()
   
   # The categories corrected for near-ice events
-  cat_ice_ref <- readRDS(cat_lon_file)  %>%
+  cat_ice_ref <- readRDS(event_file)  %>%
     dplyr::select(-cat, -cat_correct) %>% 
     unnest(cols = event) %>% 
     filter(row_number() %% 2 == 1) %>% 
     unnest(cols = event) %>% 
     ungroup() %>% 
-    filter(thresh < -1.7, event_no > 0,
-           t >= date_range[1], t <= date_range[2]) %>% 
+    filter(thresh < -1.7, event_no > 0) %>% 
     mutate(ice = TRUE) %>% 
     dplyr::select(lon, lat, t, event_no, ice) %>%
     distinct()
@@ -136,13 +138,40 @@ load_sub_cat_clim <- function(cat_lon_file, date_range){
     dplyr::select(-ice, -category)
   
   # Join and exit
-  cat_clim_sub <- left_join(cat_sub, cat_correct_sub,
+  cat_lon <- left_join(cat_sub, cat_correct_sub,
                             by = c("lon", "lat", "t", "event_no", "intensity")) %>% 
     left_join(cat_ice_sub, by = c("lon", "lat", "t", "event_no", "intensity")) %>% 
-    dplyr::rename(category = category.x, category_correct = category.y)
+    dplyr::rename(category = category.x, category_correct = category.y) %>% 
+    mutate(intensity = round(intensity, 2),
+           category = factor(category, 
+                             levels = c("I Moderate", "II Strong",
+                                        "III Severe", "IV Extreme")),
+           category_correct = factor(category_correct, 
+                                     levels = c("I Moderate", "II Strong",
+                                                "III Severe", "IV Extreme")),
+           category_ice = factor(category_ice,
+                                 levels = c("I Moderate", "II Strong",
+                                            "III Severe", "IV Extreme", "V Ice")))
+  saveRDS(cat_lon, paste0("../data/cat_lon/MCS/MCS.cat.",lon_step_pad,".Rda"))
   rm(cat_sub, cat_correct_sub, cat_ice_ref, cat_ice_sub); gc()
+}
+
+# Run them
+registerDoParallel(cores = 50)
+# plyr::l_ply(1:1440, cat_lon_proc, .parallel = T)
+
+# Function for loading a cat_lon slice and extracting a single day of values
+# testers...
+# cat_lon_file <- cat_lon_files[1118]
+# date_range <- c(as.Date("2019-11-01"), as.Date("2020-01-07"))
+load_sub_cat_clim <- function(cat_lon_file, date_range){
+  cat_clim <- readRDS(cat_lon_file)
+  cat_clim_sub <- cat_clim %>%
+    filter(t >= date_range[1], t <= date_range[2])
+  rm(cat_clim)
   return(cat_clim_sub)
 }
+
 
 # Function for saving daily global cat files
 # tester...
@@ -152,7 +181,7 @@ save_sub_cat_clim <- function(date_choice, df){
   
   # Establish file name and save location
   cat_clim_year <- lubridate::year(date_choice)
-  cat_clim_dir <- paste0("../data/cat_clim_MCS/",cat_clim_year)
+  cat_clim_dir <- paste0("../data/cat_clim/MCS/",cat_clim_year)
   dir.create(as.character(cat_clim_dir), showWarnings = F)
   cat_clim_name <- paste0("cat.clim.MCS.",date_choice,".Rds")
   
@@ -165,38 +194,23 @@ save_sub_cat_clim <- function(date_choice, df){
 
 # Function for loading, prepping, and saving the daily global category slices
 # tester...
-# date_range <- c(as.Date("1982-01-01"), as.Date("1982-01-31"))
+# date_range <- c(as.Date("1982-01-01"), as.Date("2020-12-31"))
 cat_clim_global_daily <- function(date_range){
   cat_clim_daily <- plyr::ldply(MCS_lon_files, load_sub_cat_clim,
-                                .parallel = T, date_range = date_range) %>%
-    mutate(intensity = round(intensity, 2),
-           category = factor(category, 
-                             levels = c("I Moderate", "II Strong",
-                                        "III Severe", "IV Extreme")),
-           category_correct = factor(category_correct, 
-                                     levels = c("I Moderate", "II Strong",
-                                                "III Severe", "IV Extreme")),
-           category_ice = factor(category_ice,
-                                 levels = c("I Moderate", "II Strong",
-                                            "III Severe", "IV Extreme", "V Ice"))) %>%
-    data.frame()
+                                .parallel = T, date_range = date_range)
   
-  # NB: Running this on too many cores may cause RAM issues
-  registerDoParallel(cores = 10)
+  # Save each day
   plyr::l_ply(seq(min(cat_clim_daily$t), max(cat_clim_daily$t), by = "day"), 
               save_sub_cat_clim, .parallel = T, df = cat_clim_daily)
   rm(cat_clim_daily); gc()
 }
 
 # NB: Better not to run the entire 30+ years at once
-registerDoParallel(cores = 50)
-cat_clim_global_daily(date_range = c(as.Date("1982-01-01"), as.Date("1990-12-31"))) # ~20 minutes
-registerDoParallel(cores = 50)
-cat_clim_global_daily(date_range = c(as.Date("1991-01-01"), as.Date("2000-12-31")))
-registerDoParallel(cores = 50)
-cat_clim_global_daily(date_range = c(as.Date("2001-01-01"), as.Date("2010-12-31")))
-registerDoParallel(cores = 50)
-cat_clim_global_daily(date_range = c(as.Date("2011-01-01"), as.Date("2020-12-31")))
+registerDoParallel(cores = 25)
+cat_clim_global_daily(date_range = c(as.Date("1982-01-01"), as.Date("1990-12-31"))); gc() # ~9 minutes
+cat_clim_global_daily(date_range = c(as.Date("1991-01-01"), as.Date("2000-12-31"))); gc()
+cat_clim_global_daily(date_range = c(as.Date("2001-01-01"), as.Date("2010-12-31"))); gc()
+cat_clim_global_daily(date_range = c(as.Date("2011-01-01"), as.Date("2020-12-31"))); gc()
 
 
 # 4: Annual summaries -----------------------------------------------------
@@ -219,7 +233,7 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
   print(paste0("Started run on ", chosen_year," at ",Sys.time()))
   
   ## Find file location
-  MCS_cat_files <- dir(paste0("../data/cat_clim_MCS/", chosen_year), full.names = T)
+  MCS_cat_files <- dir(paste0("../data/cat_clim/MCS/", chosen_year), full.names = T)
   
   ## Create figure title
   if(length(MCS_cat_files) < 365){
