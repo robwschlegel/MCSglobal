@@ -86,6 +86,34 @@ MCS_calc <- function(lon_row){
 plyr::l_ply(1:1440, .fun = MCS_calc, .parallel = T)
 # Takes just over two hours on 50 cores
 
+# Create lon slices for clim only files to match the MHWapp standard
+# lon_step <- 1
+clim_proc <- function(lon_step){
+  
+  # Get file name
+  lon_step_pad <- str_pad(lon_step, width = 4, pad = "0", side = "left")
+  print(paste("Began run", lon_step_pad, "at", Sys.time()))
+  
+  # Load and process
+  res <- readRDS(MCS_files[lon_step]) %>% 
+    dplyr::select(lon, lat, event) %>% 
+    unnest(event) %>% 
+    filter(row_number() %% 2 == 1) %>% 
+    unnest(event) %>% 
+    dplyr::select(seas, thresh, lat, lon, doy) %>% 
+    distinct() %>% 
+    dplyr::rename(time = doy) %>% 
+    mutate(seas = round(seas, 2),
+           thresh = round(thresh, 2))
+  
+  # Save and exit
+  saveRDS(res, paste0("../data/thresh/MCS/MCS.seas.thresh.",lon_step_pad,".Rds"))
+}
+
+# Run them
+registerDoParallel(cores = 50)
+# plyr::l_ply(1:1440, clim_proc, .parallel = T)
+
 
 # 3: Daily categories -----------------------------------------------------
 
