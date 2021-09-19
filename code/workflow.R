@@ -107,7 +107,7 @@ clim_proc <- function(lon_step){
            thresh = round(thresh, 2))
   
   # Save and exit
-  saveRDS(res, paste0("../data/thresh_MCS/MCS.seas.thresh.",lon_step_pad,".Rds"))
+  saveRDS(res, paste0("../data/thresh/MCS/MCS.seas.thresh.",lon_step_pad,".Rds"))
 }
 
 # Run them
@@ -178,7 +178,7 @@ cat_lon_proc <- function(lon_step){
            category_ice = factor(category_ice,
                                  levels = c("I Moderate", "II Strong",
                                             "III Severe", "IV Extreme", "V Ice")))
-  saveRDS(cat_lon, paste0("../data/cat_lon_MCS/MCS.cat.",lon_step_pad,".Rda"))
+  saveRDS(cat_lon, paste0("../data/cat_lon/MCS/MCS.cat.",lon_step_pad,".Rda"))
   rm(cat_sub, cat_correct_sub, cat_ice_ref, cat_ice_sub); gc()
 }
 
@@ -206,7 +206,7 @@ save_sub_cat_clim <- function(date_choice, df){
   
   # Establish file name and save location
   cat_clim_year <- lubridate::year(date_choice)
-  cat_clim_dir <- paste0("../data/cat_clim_MCS/",cat_clim_year)
+  cat_clim_dir <- paste0("../data/cat_clim/MCS/",cat_clim_year)
   dir.create(as.character(cat_clim_dir), showWarnings = F)
   cat_clim_name <- paste0("cat.clim.MCS.",date_choice,".Rds")
   
@@ -251,7 +251,7 @@ event_proc <- function(lon_step){
     mutate_all(round, 3)
   
   # Save and exit
-  saveRDS(res, paste0("../data/event_MCS/MCS.event.",lon_step_pad,".Rda"))
+  saveRDS(res, paste0("../data/event/MCS/MCS.event.",lon_step_pad,".Rda"))
   rm(res); gc()
 }
 
@@ -280,7 +280,7 @@ MCS_annual_state <- function(chosen_year, force_calc = F){
   print(paste0("Started run on ", chosen_year," at ",Sys.time()))
   
   ## Find file location
-  MCS_cat_files <- dir(paste0("../data/cat_clim_MCS/", chosen_year), full.names = T)
+  MCS_cat_files <- dir(paste0("../data/cat_clim/MCS/", chosen_year), full.names = T)
   
   ## Create figure title
   if(length(MCS_cat_files) < 365){
